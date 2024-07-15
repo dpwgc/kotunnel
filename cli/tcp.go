@@ -27,6 +27,8 @@ func TCP(remoteAddr string, localPort int) {
 			return
 		}
 
+		fmt.Printf("\033[1;32;40m%s\033[0m\n", "连接成功")
+
 		for {
 			localConn, err := localListener.Accept()
 			if err != nil {
