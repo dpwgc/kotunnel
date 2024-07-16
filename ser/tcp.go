@@ -2,7 +2,6 @@ package ser
 
 import (
 	"fmt"
-	"io"
 	"kotunnel/base"
 	"net"
 )
@@ -35,6 +34,7 @@ func TCP(listenPort, clientPort int) {
 }
 
 func handleClient(clientConn net.Conn, listener net.Listener) {
+
 	defer clientConn.Close()
 
 	for {
@@ -44,13 +44,6 @@ func handleClient(clientConn net.Conn, listener net.Listener) {
 			continue
 		}
 
-		go handleConnection(clientConn, incomingConn)
+		go base.CopyConn(clientConn, incomingConn)
 	}
-}
-
-func handleConnection(clientConn, incomingConn net.Conn) {
-	defer clientConn.Close()
-	defer incomingConn.Close()
-	go io.Copy(clientConn, incomingConn)
-	io.Copy(incomingConn, clientConn)
 }

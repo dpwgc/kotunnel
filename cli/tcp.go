@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"io"
 	"kotunnel/base"
 	"net"
 	"time"
@@ -11,38 +10,28 @@ import (
 func TCP(remoteAddr string, localPort int) {
 	for {
 		time.Sleep(1 * time.Second)
-		fmt.Printf("\033[1;36;40m%s\033[0m\n", "尝试连接服务端......")
+		fmt.Printf("\033[1;36;40m%s\033[0m\n", "尝试连接远程服务......")
 		// 连接到服务端
-		serverConn, err := net.Dial("tcp", remoteAddr)
+		remoteConn, err := net.Dial("tcp", remoteAddr)
 		if err != nil {
-			fmt.Printf("\033[1;31;40m%s\033[0m\n", fmt.Sprintf("连接失败，5秒后重试，失败原因: %s", err.Error()))
+			fmt.Printf("\033[1;31;40m%s\033[0m\n", fmt.Sprintf("远程服务连接失败，5秒后重试，失败原因: %s", err.Error()))
 			base.Logger.Error(fmt.Sprintf("error connecting to server: %v", err))
 			time.Sleep(4 * time.Second)
 			continue
 		}
 
-		localListener, err := net.Listen("tcp", fmt.Sprintf(":%v", localPort))
+		fmt.Printf("\033[1;32;40m%s\033[0m\n", "远程服务连接成功")
+
+		localConn, err := net.Dial("tcp", fmt.Sprintf(":%v", localPort))
 		if err != nil {
-			base.Logger.Error(fmt.Sprintf("error starting local listener on port %v: %v", localPort, err))
-			return
+			fmt.Printf("\033[1;31;40m%s\033[0m\n", fmt.Sprintf("本地服务连接失败，5秒后重试，失败原因: %s", err.Error()))
+			base.Logger.Error(fmt.Sprintf("error connecting to server: %v", err))
+			time.Sleep(4 * time.Second)
+			continue
 		}
 
-		fmt.Printf("\033[1;32;40m%s\033[0m\n", "连接成功")
+		fmt.Printf("\033[1;32;40m%s\033[0m\n", "本地服务连接成功")
 
-		for {
-			localConn, err := localListener.Accept()
-			if err != nil {
-				base.Logger.Error(fmt.Sprintf("error accepting local connection: %v", err))
-				continue
-			}
-
-			go handleConnection(localConn, serverConn)
-		}
+		base.CopyConn(localConn, remoteConn)
 	}
-}
-
-func handleConnection(localConn, serverConn net.Conn) {
-	defer localConn.Close()
-	go io.Copy(serverConn, localConn)
-	io.Copy(localConn, serverConn)
 }
