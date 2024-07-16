@@ -22,28 +22,28 @@ func TCP(listenPort, clientPort int) {
 	}
 	defer clientListener.Close()
 
-	for {
-		clientConn, err := clientListener.Accept()
-		if err != nil {
-			base.Logger.Error(fmt.Sprintf("error accepting client connection: %v", err))
-			continue
+	clientConnChan := make(chan net.Conn, 100)
+
+	go func() {
+		for {
+			clientConn, err := clientListener.Accept()
+			if err != nil {
+				base.Logger.Error(fmt.Sprintf("error accepting client connection: %v", err))
+				return
+			}
+			clientConnChan <- clientConn
+			fmt.Println("push clientConn")
 		}
-
-		go handleClient(clientConn, listener)
-	}
-}
-
-func handleClient(clientConn net.Conn, listener net.Listener) {
-
-	defer clientConn.Close()
+	}()
 
 	for {
 		incomingConn, err := listener.Accept()
 		if err != nil {
 			base.Logger.Error(fmt.Sprintf("error accepting incoming connection: %v", err))
-			continue
+			return
 		}
-
+		clientConn := <-clientConnChan
+		fmt.Println("pop clientConn")
 		go base.CopyConn(clientConn, incomingConn)
 	}
 }
