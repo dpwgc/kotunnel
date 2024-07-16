@@ -7,6 +7,7 @@ application:
   client:
     remote-addr: 0.0.0.0:8080
     local-port: 7070
+    tunnel-num: 100
   log:
     path: ./logs
     size: 1

@@ -6,7 +6,9 @@ import (
 	"sync"
 )
 
-func CopyConn(a, b net.Conn) {
+func CopyConn(a, b net.Conn) error {
+
+	var err error = nil
 
 	defer a.Close()
 	defer b.Close()
@@ -14,12 +16,17 @@ func CopyConn(a, b net.Conn) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		_, _ = io.Copy(b, a)
+		_, err = io.Copy(b, a)
+		a.Close()
+		b.Close()
 		wg.Done()
 	}()
 	go func() {
-		_, _ = io.Copy(a, b)
+		_, err = io.Copy(a, b)
+		a.Close()
+		b.Close()
 		wg.Done()
 	}()
 	wg.Wait()
+	return err
 }

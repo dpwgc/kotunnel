@@ -1,7 +1,6 @@
 package base
 
 import (
-	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"os"
@@ -28,6 +27,7 @@ type ServerOptions struct {
 type ClientOptions struct {
 	RemoteAddr string `yaml:"remote-addr" json:"remoteAddr"`
 	LocalPort  int    `yaml:"local-port" json:"localPort"`
+	TunnelNum  int    `yaml:"tunnel-num" json:"tunnelNum"`
 }
 
 type LogOptions struct {
@@ -57,6 +57,4 @@ func InitConfig() {
 		time.Sleep(3 * time.Second)
 		panic(err)
 	}
-	marshal, _ := json.Marshal(config.Application)
-	fmt.Printf("\033[1;33;40m%s\033[0m\n", "配置加载完毕: "+string(marshal))
 }

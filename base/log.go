@@ -1,6 +1,7 @@
 package base
 
 import (
+	"fmt"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"log/slog"
 	"time"
@@ -28,4 +29,8 @@ func InitLog() {
 			return a
 		},
 	}))
+}
+
+func Println(c1, c2 int, s string) {
+	fmt.Printf("\033[1;%v;%vm%s\033[0m\n", c1, c2, s)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"kotunnel/base"
 	"net"
+	"sync"
 )
 
 func TCP(listenPort, clientPort int) {
@@ -22,7 +23,10 @@ func TCP(listenPort, clientPort int) {
 	}
 	defer clientListener.Close()
 
-	clientConnChan := make(chan net.Conn, 100)
+	var connPool sync.Pool
+	connPool.New = func() interface{} {
+		return nil
+	}
 
 	go func() {
 		for {
@@ -31,8 +35,7 @@ func TCP(listenPort, clientPort int) {
 				base.Logger.Error(fmt.Sprintf("error accepting client connection: %v", err))
 				return
 			}
-			clientConnChan <- clientConn
-			fmt.Println("push clientConn")
+			connPool.Put(clientConn)
 		}
 	}()
 
@@ -42,8 +45,18 @@ func TCP(listenPort, clientPort int) {
 			base.Logger.Error(fmt.Sprintf("error accepting incoming connection: %v", err))
 			return
 		}
-		clientConn := <-clientConnChan
-		fmt.Println("pop clientConn")
-		go base.CopyConn(clientConn, incomingConn)
+		for {
+			cache := connPool.Get()
+			if cache != nil {
+				clientConn := cache.(net.Conn)
+				err = base.CopyConn(clientConn, incomingConn)
+				if err != nil {
+					continue
+				}
+			} else {
+				incomingConn.Close()
+				break
+			}
+		}
 	}
 }
