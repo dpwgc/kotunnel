@@ -11,11 +11,11 @@ var Logger *slog.Logger
 
 func InitLog() {
 	r := &lumberjack.Logger{
-		Filename:   Config().Application.Log.Path + "/runtime.log",
+		Filename:   Config().App.Log.Path + "/runtime.log",
 		LocalTime:  true,
-		MaxSize:    Config().Application.Log.Size,
-		MaxAge:     Config().Application.Log.Age,
-		MaxBackups: Config().Application.Log.Backups,
+		MaxSize:    Config().App.Log.Size,
+		MaxAge:     Config().App.Log.Age,
+		MaxBackups: Config().App.Log.Backups,
 		Compress:   false,
 	}
 	Logger = slog.New(slog.NewJSONHandler(r, &slog.HandlerOptions{
@@ -32,5 +32,5 @@ func InitLog() {
 }
 
 func Println(c1, c2 int, s string) {
-	fmt.Printf("\033[1;%v;%vm%s\033[0m\n", c1, c2, s)
+	fmt.Printf("\033[1;%v;%vm<%s> %s\033[0m\n", c1, c2, time.Now().Format("2006-01-02 15:04:05"), s)
 }

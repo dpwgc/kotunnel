@@ -17,7 +17,7 @@ func TCP(remoteAddr string, localPort int, tunnelNum int) {
 		// 连接到服务端
 		remoteConn, err := net.Dial("tcp", remoteAddr)
 		if err != nil {
-			base.Println(31, 40, fmt.Sprintf("远程服务[%v]连接失败，5秒后重试，失败原因: %s", remoteAddr, err.Error()))
+			base.Println(31, 40, fmt.Sprintf("remote server [%v] connection failed: %s", remoteAddr, err.Error()))
 			base.Logger.Error(fmt.Sprintf("error connecting to server: %v", err))
 			time.Sleep(5 * time.Second)
 			continue
@@ -25,7 +25,7 @@ func TCP(remoteAddr string, localPort int, tunnelNum int) {
 
 		localConn, err := net.Dial("tcp", fmt.Sprintf(":%v", localPort))
 		if err != nil {
-			base.Println(31, 40, fmt.Sprintf("本地服务[%v]连接失败，5秒后重试，失败原因: %s", localPort, err.Error()))
+			base.Println(31, 40, fmt.Sprintf("local server [%v] connection failed: %s", localPort, err.Error()))
 			base.Logger.Error(fmt.Sprintf("error connecting to server: %v", err))
 			time.Sleep(5 * time.Second)
 			continue

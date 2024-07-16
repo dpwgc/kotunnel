@@ -8,18 +8,18 @@ import (
 	"time"
 )
 
-func TCP(listenPort, clientPort int) {
+func TCP(openPort, clientPort int) {
 
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", listenPort))
+	openListener, err := net.Listen("tcp", fmt.Sprintf(":%v", openPort))
 	if err != nil {
-		base.Logger.Error(fmt.Sprintf("error starting listener on port %v: %v", listenPort, err))
+		base.Logger.Error(fmt.Sprintf("error starting open listener on port %v: %v", openPort, err))
 		return
 	}
-	defer listener.Close()
+	defer openListener.Close()
 
 	clientListener, err := net.Listen("tcp", fmt.Sprintf(":%v", clientPort))
 	if err != nil {
-		base.Logger.Error(fmt.Sprintf("error starting listener on port %v: %v", clientPort, err))
+		base.Logger.Error(fmt.Sprintf("error starting client listener on port %v: %v", clientPort, err))
 		return
 	}
 	defer clientListener.Close()
@@ -41,7 +41,7 @@ func TCP(listenPort, clientPort int) {
 	}()
 
 	for {
-		incomingConn, err := listener.Accept()
+		incomingConn, err := openListener.Accept()
 		if err != nil {
 			base.Logger.Error(fmt.Sprintf("error accepting incoming connection: %v", err))
 			return
@@ -60,7 +60,7 @@ func TCP(listenPort, clientPort int) {
 					down++
 					time.Sleep(50 * time.Millisecond)
 					if down > 200 {
-						base.Logger.Error("failed to get connection")
+						base.Logger.Error("failed to get connection from pool")
 						incomingConn.Close()
 						return
 					}

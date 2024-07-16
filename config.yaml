@@ -1,13 +1,13 @@
-application:
+app:
   protocol: tcp
   mode: client
-  server:
-    listen-port: 9090
-    client-port: 8080
-  client:
-    remote-addr: 0.0.0.0:8080
-    local-port: 7070
-    tunnel-num: 100
+  servers:
+    - open-port: 9090
+      client-port: 8080
+  clients:
+    - tunnel-num: 100
+      remote-addr: 0.0.0.0:8080
+      local-port: 7070
   log:
     path: ./logs
     size: 1

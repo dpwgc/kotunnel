@@ -8,19 +8,19 @@ import (
 )
 
 type ConfigOptions struct {
-	Application ApplicationOptions `yaml:"application" json:"application"`
+	App AppOptions `yaml:"app" json:"app"`
 }
 
-type ApplicationOptions struct {
-	Protocol string        `yaml:"protocol" json:"protocol"`
-	Mode     string        `yaml:"mode" json:"mode"`
-	Server   ServerOptions `yaml:"server" json:"server"`
-	Client   ClientOptions `yaml:"client" json:"client"`
-	Log      LogOptions    `yaml:"log" json:"log"`
+type AppOptions struct {
+	Protocol string          `yaml:"protocol" json:"protocol"`
+	Mode     string          `yaml:"mode" json:"mode"`
+	Servers  []ServerOptions `yaml:"servers" json:"servers"`
+	Clients  []ClientOptions `yaml:"clients" json:"clients"`
+	Log      LogOptions      `yaml:"log" json:"log"`
 }
 
 type ServerOptions struct {
-	ListenPort int `yaml:"listen-port" json:"listenPort"`
+	OpenPort   int `yaml:"open-port" json:"openPort"`
 	ClientPort int `yaml:"client-port" json:"clientPort"`
 }
 
