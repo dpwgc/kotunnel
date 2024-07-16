@@ -5,6 +5,7 @@ import (
 	"kotunnel/base"
 	"net"
 	"sync"
+	"time"
 )
 
 func TCP(listenPort, clientPort int) {
@@ -45,18 +46,26 @@ func TCP(listenPort, clientPort int) {
 			base.Logger.Error(fmt.Sprintf("error accepting incoming connection: %v", err))
 			return
 		}
-		for {
-			cache := connPool.Get()
-			if cache != nil {
-				clientConn := cache.(net.Conn)
-				err = base.CopyConn(clientConn, incomingConn)
-				if err != nil {
-					continue
+		go func() {
+			down := 0
+			for {
+				cache := connPool.Get()
+				if cache != nil {
+					clientConn := cache.(net.Conn)
+					err = base.CopyConn(clientConn, incomingConn)
+					if err != nil {
+						continue
+					}
+				} else {
+					down++
+					time.Sleep(50 * time.Millisecond)
+					if down > 200 {
+						base.Logger.Error("failed to get connection")
+						incomingConn.Close()
+						return
+					}
 				}
-			} else {
-				incomingConn.Close()
-				break
 			}
-		}
+		}()
 	}
 }
