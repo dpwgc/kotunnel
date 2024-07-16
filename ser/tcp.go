@@ -24,8 +24,8 @@ func TCP(openPort, clientPort int) {
 	}
 	defer clientListener.Close()
 
-	var connPool sync.Pool
-	connPool.New = func() interface{} {
+	var clientConnPool sync.Pool
+	clientConnPool.New = func() interface{} {
 		return nil
 	}
 
@@ -36,34 +36,42 @@ func TCP(openPort, clientPort int) {
 				base.Logger.Error(fmt.Sprintf("error accepting client connection: %v", err))
 				return
 			}
-			connPool.Put(clientConn)
+			clientConnPool.Put(clientConn)
 		}
 	}()
 
 	for {
-		incomingConn, err := openListener.Accept()
+		openConn, err := openListener.Accept()
 		if err != nil {
-			base.Logger.Error(fmt.Sprintf("error accepting incoming connection: %v", err))
+			base.Logger.Error(fmt.Sprintf("error accepting open connection: %v", err))
 			return
 		}
 		go func() {
+			fmt.Println("input 1")
 			down := 0
 			for {
-				cache := connPool.Get()
+				fmt.Println("input 2")
+				cache := clientConnPool.Get()
+				fmt.Println("input 3", cache)
 				if cache != nil {
 					clientConn := cache.(net.Conn)
-					err = base.CopyConn(clientConn, incomingConn)
+					err = base.CopyConn(clientConn, openConn)
+					clientConn.Close()
 					if err != nil {
+						fmt.Println("continue 1", err.Error())
 						continue
 					}
+					openConn.Close()
+					return
 				} else {
 					down++
-					time.Sleep(50 * time.Millisecond)
 					if down > 200 {
 						base.Logger.Error("failed to get connection from pool")
-						incomingConn.Close()
+						openConn.Close()
 						return
 					}
+					fmt.Println("continue 2", "failed to get connection from pool")
+					time.Sleep(50 * time.Millisecond)
 				}
 			}
 		}()

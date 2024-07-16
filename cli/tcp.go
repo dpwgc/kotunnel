@@ -17,22 +17,27 @@ func TCP(remoteAddr string, localPort int, tunnelNum int) {
 		// 连接到服务端
 		remoteConn, err := net.Dial("tcp", remoteAddr)
 		if err != nil {
+			controlChan <- true
 			base.Println(31, 40, fmt.Sprintf("remote server [%v] connection failed: %s", remoteAddr, err.Error()))
 			base.Logger.Error(fmt.Sprintf("error connecting to server: %v", err))
-			time.Sleep(5 * time.Second)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 
 		localConn, err := net.Dial("tcp", fmt.Sprintf(":%v", localPort))
 		if err != nil {
+			remoteConn.Close()
+			controlChan <- true
 			base.Println(31, 40, fmt.Sprintf("local server [%v] connection failed: %s", localPort, err.Error()))
 			base.Logger.Error(fmt.Sprintf("error connecting to server: %v", err))
-			time.Sleep(5 * time.Second)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 
 		go func() {
 			base.CopyConn(localConn, remoteConn)
+			localConn.Close()
+			remoteConn.Close()
 			controlChan <- true
 		}()
 	}
