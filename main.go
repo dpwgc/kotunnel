@@ -21,7 +21,7 @@ func main() {
 			base.Println(36, 40, "mode: tcp server")
 			for _, v := range base.Config().App.Servers {
 				bytes, _ := json.Marshal(v)
-				base.Println(32, 40, fmt.Sprintf("create tcp server: %s", string(bytes)))
+				base.Println(36, 40, fmt.Sprintf("create tcp server: %s", string(bytes)))
 				ser.TCP(v.OpenPort, v.ClientPort)
 			}
 		}
@@ -32,7 +32,7 @@ func main() {
 			base.Println(36, 40, "mode: tcp client")
 			for _, v := range base.Config().App.Clients {
 				bytes, _ := json.Marshal(v)
-				base.Println(32, 40, fmt.Sprintf("create tcp client: %s", string(bytes)))
+				base.Println(36, 40, fmt.Sprintf("create tcp client: %s", string(bytes)))
 				cli.TCP(v.RemoteAddr, v.LocalPort, v.TunnelNum)
 			}
 		}

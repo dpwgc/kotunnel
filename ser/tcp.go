@@ -47,21 +47,19 @@ func TCP(openPort, clientPort int) {
 			return
 		}
 		go func() {
-			fmt.Println("input 1")
 			down := 0
 			for {
-				fmt.Println("input 2")
 				cache := clientConnPool.Get()
-				fmt.Println("input 3", cache)
 				if cache != nil {
 					clientConn := cache.(net.Conn)
-					err = base.CopyConn(clientConn, openConn)
-					clientConn.Close()
+					_, err = clientConn.Write(base.Int64ToBytes(1, 8))
 					if err != nil {
-						fmt.Println("continue 1", err.Error())
+						base.Logger.Error(fmt.Sprintf("error writing client connection: %v", err))
+						clientConn.Close()
+						time.Sleep(50 * time.Millisecond)
 						continue
 					}
-					openConn.Close()
+					base.CopyConn(clientConn, openConn)
 					return
 				} else {
 					down++
@@ -70,7 +68,6 @@ func TCP(openPort, clientPort int) {
 						openConn.Close()
 						return
 					}
-					fmt.Println("continue 2", "failed to get connection from pool")
 					time.Sleep(50 * time.Millisecond)
 				}
 			}

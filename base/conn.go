@@ -1,31 +1,28 @@
 package base
 
 import (
+	"encoding/binary"
 	"io"
 	"net"
-	"sync"
 )
 
-func CopyConn(local, remote net.Conn) error {
-
-	var err error = nil
-
-	var wg sync.WaitGroup
-	wg.Add(2)
+func CopyConn(local, remote net.Conn) {
+	defer remote.Close()
+	defer local.Close()
 	go func() {
-		_, er := io.Copy(remote, local)
-		if er != nil && er != io.EOF {
-			err = er
-		}
-		wg.Done()
+		io.Copy(local, remote)
+		remote.Close()
+		local.Close()
 	}()
-	go func() {
-		_, er := io.Copy(local, remote)
-		if er != nil && er != io.EOF {
-			err = er
-		}
-		wg.Done()
-	}()
-	wg.Wait()
-	return err
+	io.Copy(remote, local)
+}
+
+func Int64ToBytes(num int64, len int) []byte {
+	byteArray := make([]byte, len)
+	binary.LittleEndian.PutUint64(byteArray, uint64(num))
+	return byteArray
+}
+
+func BytesToInt64(bytes []byte) int64 {
+	return int64(binary.LittleEndian.Uint64(bytes[:]))
 }
