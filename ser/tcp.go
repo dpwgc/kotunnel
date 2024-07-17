@@ -38,32 +38,7 @@ func TCP(openPort, clientPort int) {
 			base.Logger.Error(fmt.Sprintf("error accepting open connection: %v", err))
 			return
 		}
-		go func() {
-			down := 0
-			for {
-				cache := clientConnPool.Get()
-				if cache != nil {
-					clientConn := cache.(net.Conn)
-					_, err = clientConn.Write(base.Int64ToBytes(1, 8))
-					if err != nil {
-						clientConn.Close()
-						base.Logger.Error(fmt.Sprintf("error writing client connection: %v", err))
-						time.Sleep(50 * time.Millisecond)
-						continue
-					}
-					base.CopyConn(clientConn, openConn)
-					return
-				} else {
-					down++
-					if down > 200 {
-						base.Logger.Error("failed to get connection from pool")
-						openConn.Close()
-						return
-					}
-					time.Sleep(50 * time.Millisecond)
-				}
-			}
-		}()
+		go tcpHandle(openConn, clientConnPool)
 	}
 }
 
@@ -85,4 +60,31 @@ func tcpServe(openPort, clientPort int) (net.Listener, net.Listener, *sync.Pool,
 	}
 
 	return openListener, clientListener, &pool, nil
+}
+
+func tcpHandle(openConn net.Conn, clientConnPool *sync.Pool) {
+	down := 0
+	for {
+		cache := clientConnPool.Get()
+		if cache != nil {
+			clientConn := cache.(net.Conn)
+			_, err := clientConn.Write(base.Int64ToBytes(1, 8))
+			if err != nil {
+				clientConn.Close()
+				base.Logger.Error(fmt.Sprintf("error writing client connection: %v", err))
+				time.Sleep(50 * time.Millisecond)
+				continue
+			}
+			base.CopyConn(clientConn, openConn)
+			return
+		} else {
+			down++
+			if down > 200 {
+				base.Logger.Error("failed to get connection from pool")
+				openConn.Close()
+				return
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
 }

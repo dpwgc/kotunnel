@@ -20,29 +20,37 @@ func main() {
 
 	// 服务端 or 客户端
 	if base.Config().App.Mode == "server" {
-		if base.Config().App.Protocol == "udp" {
-			// TODO
-		} else {
-			base.Println(36, 40, "mode: tcp server")
-			for _, v := range base.Config().App.Servers {
-				bytes, _ := json.Marshal(v)
-				base.Println(36, 40, fmt.Sprintf("create tcp server: %s", string(bytes)))
-				ser.TCP(v.OpenPort, v.ClientPort)
-			}
-		}
+		server()
 	} else {
-		if base.Config().App.Protocol == "udp" {
-			// TODO
-		} else {
-			base.Println(36, 40, "mode: tcp client")
-			for _, v := range base.Config().App.Clients {
-				bytes, _ := json.Marshal(v)
-				base.Println(36, 40, fmt.Sprintf("create tcp client: %s", string(bytes)))
-				for i := 0; i < v.TunnelNum-1; i++ {
-					go cli.TCP(v.RemoteAddr, v.LocalPort)
-				}
-				cli.TCP(v.RemoteAddr, v.LocalPort)
+		client()
+	}
+}
+
+func server() {
+	if base.Config().App.Protocol == "udp" {
+		// TODO
+	} else {
+		base.Println(36, 40, "mode: tcp server")
+		for _, v := range base.Config().App.Servers {
+			bytes, _ := json.Marshal(v)
+			base.Println(36, 40, fmt.Sprintf("create tcp server: %s", string(bytes)))
+			ser.TCP(v.OpenPort, v.ClientPort)
+		}
+	}
+}
+
+func client() {
+	if base.Config().App.Protocol == "udp" {
+		// TODO
+	} else {
+		base.Println(36, 40, "mode: tcp client")
+		for _, v := range base.Config().App.Clients {
+			bytes, _ := json.Marshal(v)
+			base.Println(36, 40, fmt.Sprintf("create tcp client: %s", string(bytes)))
+			for i := 0; i < v.TunnelNum-1; i++ {
+				go cli.TCP(v.RemoteAddr, v.LocalPort)
 			}
+			cli.TCP(v.RemoteAddr, v.LocalPort)
 		}
 	}
 }

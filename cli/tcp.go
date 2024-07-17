@@ -19,7 +19,7 @@ func TCP(remoteAddr string, localPort int) {
 			continue
 		}
 
-		err = tcpConn(remoteAddr, localPort, remoteConn)
+		err = tcpHandle(remoteAddr, localPort, remoteConn)
 		if err != nil {
 			remoteConn.Close()
 			base.Logger.Error(fmt.Sprintf("[%v] -> [%v] connection error: %s", localPort, remoteAddr, err.Error()))
@@ -30,7 +30,7 @@ func TCP(remoteAddr string, localPort int) {
 	}
 }
 
-func tcpConn(remoteAddr string, localPort int, remoteConn net.Conn) error {
+func tcpHandle(remoteAddr string, localPort int, remoteConn net.Conn) error {
 
 	var header = make([]byte, 8)
 	_, err := remoteConn.Read(header)
