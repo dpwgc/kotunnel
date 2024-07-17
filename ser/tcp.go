@@ -10,24 +10,16 @@ import (
 
 func TCP(openPort, clientPort int) {
 
-	openListener, err := net.Listen("tcp", fmt.Sprintf(":%v", openPort))
+	openListener, clientListener, clientConnPool, err := tcpServe(openPort, clientPort)
 	if err != nil {
-		base.Logger.Error(fmt.Sprintf("error starting open listener on port %v: %v", openPort, err))
+		base.Logger.Error(fmt.Sprintf("error starting listener on port %v: %v", openPort, err))
 		return
 	}
-	defer openListener.Close()
 
-	clientListener, err := net.Listen("tcp", fmt.Sprintf(":%v", clientPort))
-	if err != nil {
-		base.Logger.Error(fmt.Sprintf("error starting client listener on port %v: %v", clientPort, err))
-		return
-	}
-	defer clientListener.Close()
-
-	var clientConnPool sync.Pool
-	clientConnPool.New = func() interface{} {
-		return nil
-	}
+	defer func() {
+		openListener.Close()
+		clientListener.Close()
+	}()
 
 	go func() {
 		for {
@@ -54,8 +46,8 @@ func TCP(openPort, clientPort int) {
 					clientConn := cache.(net.Conn)
 					_, err = clientConn.Write(base.Int64ToBytes(1, 8))
 					if err != nil {
-						base.Logger.Error(fmt.Sprintf("error writing client connection: %v", err))
 						clientConn.Close()
+						base.Logger.Error(fmt.Sprintf("error writing client connection: %v", err))
 						time.Sleep(50 * time.Millisecond)
 						continue
 					}
@@ -73,4 +65,24 @@ func TCP(openPort, clientPort int) {
 			}
 		}()
 	}
+}
+
+func tcpServe(openPort, clientPort int) (net.Listener, net.Listener, *sync.Pool, error) {
+
+	var pool sync.Pool
+	pool.New = func() interface{} {
+		return nil
+	}
+
+	openListener, err := net.Listen("tcp", fmt.Sprintf(":%v", openPort))
+	if err != nil {
+		return nil, nil, &pool, err
+	}
+
+	clientListener, err := net.Listen("tcp", fmt.Sprintf(":%v", clientPort))
+	if err != nil {
+		return nil, nil, &pool, err
+	}
+
+	return openListener, clientListener, &pool, nil
 }

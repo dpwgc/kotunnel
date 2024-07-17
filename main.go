@@ -9,11 +9,16 @@ import (
 )
 
 func main() {
-	fmt.Println("  _  __    _______                          _ \n | |/ /   |__   __|                        | |\n | ' /  ___  | | _   _  _ __   _ __    ___ | |\n |  <  / _ \\ | || | | || '_ \\ | '_ \\  / _ \\| |\n | . \\| (_) || || |_| || | | || | | ||  __/| |\n |_|\\_\\\\___/ |_| \\__,_||_| |_||_| |_| \\___||_|\n                                              ")
+
+	// 配置加载
 	base.InitConfig()
 	marshal, _ := json.Marshal(base.Config().App)
 	base.Println(33, 40, "config: "+string(marshal))
+
+	// 日志加载
 	base.InitLog()
+
+	// 服务端 or 客户端
 	if base.Config().App.Mode == "server" {
 		if base.Config().App.Protocol == "udp" {
 			// TODO
