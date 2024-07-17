@@ -63,28 +63,33 @@ func tcpServe(openPort, clientPort int) (net.Listener, net.Listener, *sync.Pool,
 }
 
 func tcpHandle(openConn net.Conn, clientConnPool *sync.Pool) {
-	down := 0
+	retry := 0
 	for {
-		cache := clientConnPool.Get()
-		if cache != nil {
-			clientConn := cache.(net.Conn)
-			_, err := clientConn.Write(base.Int64ToBytes(1, 8))
-			if err != nil {
-				clientConn.Close()
-				base.Logger.Error(fmt.Sprintf("error writing client connection: %v", err))
-				time.Sleep(50 * time.Millisecond)
-				continue
-			}
-			base.CopyConn(clientConn, openConn)
+		retry++
+		// 超过最大重试次数
+		if retry > 200 {
+			openConn.Close()
+			base.Logger.Error("retry > 200")
 			return
-		} else {
-			down++
-			if down > 200 {
-				base.Logger.Error("failed to get connection from pool")
-				openConn.Close()
-				return
-			}
-			time.Sleep(50 * time.Millisecond)
 		}
+
+		cache := clientConnPool.Get()
+		if cache == nil {
+			base.Logger.Error("failed to get connection from pool")
+			time.Sleep(50 * time.Millisecond)
+			continue
+		}
+
+		clientConn := cache.(net.Conn)
+		_, err := clientConn.Write(base.Int64ToBytes(1, 8))
+		if err != nil {
+			clientConn.Close()
+			base.Logger.Error(fmt.Sprintf("error writing client connection: %v", err))
+			time.Sleep(50 * time.Millisecond)
+			continue
+		}
+
+		base.CopyConn(clientConn, openConn)
+		return
 	}
 }

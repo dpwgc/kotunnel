@@ -27,7 +27,7 @@ type ServerOptions struct {
 type ClientOptions struct {
 	RemoteAddr string `yaml:"remote-addr" json:"remoteAddr"`
 	LocalPort  int    `yaml:"local-port" json:"localPort"`
-	TunnelNum  int    `yaml:"tunnel-num" json:"tunnelNum"`
+	IdleNum    int    `yaml:"idle-num" json:"idleNum"`
 }
 
 type LogOptions struct {
@@ -47,13 +47,13 @@ func InitConfig() {
 	//加载客户端配置
 	configBytes, err := os.ReadFile("./config.yaml")
 	if err != nil {
-		fmt.Printf("\033[1;31;40m%s\033[0m\n", fmt.Sprintf("配置加载失败: %s", err.Error()))
+		Println(31, 40, fmt.Sprintf("read config error: %s", err.Error()))
 		time.Sleep(3 * time.Second)
 		panic(err)
 	}
 	err = yaml.Unmarshal(configBytes, &config)
 	if err != nil {
-		fmt.Printf("\033[1;31;40m%s\033[0m\n", fmt.Sprintf("配置加载失败: %s", err.Error()))
+		Println(31, 40, fmt.Sprintf("parse config error: %s", err.Error()))
 		time.Sleep(3 * time.Second)
 		panic(err)
 	}

@@ -5,7 +5,7 @@ app:
     - open-port: 9090
       client-port: 8080
   clients:
-    - tunnel-num: 100
+    - idle-num: 5
       remote-addr: 0.0.0.0:8080
       local-port: 7070
   log:
