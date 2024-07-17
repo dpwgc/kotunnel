@@ -33,7 +33,10 @@ func main() {
 			for _, v := range base.Config().App.Clients {
 				bytes, _ := json.Marshal(v)
 				base.Println(36, 40, fmt.Sprintf("create tcp client: %s", string(bytes)))
-				cli.TCP(v.RemoteAddr, v.LocalPort, v.TunnelNum)
+				for i := 0; i < v.TunnelNum-1; i++ {
+					go cli.TCP(v.RemoteAddr, v.LocalPort)
+				}
+				cli.TCP(v.RemoteAddr, v.LocalPort)
 			}
 		}
 	}

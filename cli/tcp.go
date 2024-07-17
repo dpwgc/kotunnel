@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TCP(remoteAddr string, localPort int, tunnelNum int) {
+func TCP(remoteAddr string, localPort int) {
 	for {
 		// 连接到服务端
 		remoteConn, err := net.Dial("tcp", remoteAddr)
