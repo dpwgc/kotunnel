@@ -33,4 +33,9 @@ func InitLog() {
 
 func Println(c1, c2 int, s string) {
 	fmt.Printf("\033[1;%v;%vm<%s> %s\033[0m\n", c1, c2, time.Now().Format("2006-01-02 15:04:05"), s)
+	if c1 == 31 {
+		Logger.Error(s)
+	} else {
+		Logger.Info(s)
+	}
 }

@@ -35,8 +35,8 @@ func server(opts base.AppOptions) {
 	} else {
 		for _, v := range opts.Servers {
 			bytes, _ := json.Marshal(v)
-			base.Println(36, 40, fmt.Sprintf("create tcp server: %s", string(bytes)))
-			ser.TCP(v.OpenPort, v.TunnelPort)
+			base.Println(36, 40, fmt.Sprintf("start tcp server: %s", string(bytes)))
+			ser.TCP(v.OpenPort, v.TunnelPort, opts.Secret)
 		}
 	}
 }
@@ -47,11 +47,11 @@ func client(opts base.AppOptions) {
 	} else {
 		for _, v := range opts.Clients {
 			bytes, _ := json.Marshal(v)
-			base.Println(36, 40, fmt.Sprintf("create tcp client: %s", string(bytes)))
+			base.Println(36, 40, fmt.Sprintf("start tcp client: %s", string(bytes)))
 			for i := 0; i < v.IdleNum-1; i++ {
-				go cli.TCP(v.TunnelAddr, v.LocalPort)
+				go cli.TCP(v.TunnelAddr, v.LocalPort, opts.Secret)
 			}
-			cli.TCP(v.TunnelAddr, v.LocalPort)
+			cli.TCP(v.TunnelAddr, v.LocalPort, opts.Secret)
 		}
 	}
 }
