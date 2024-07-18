@@ -8,9 +8,9 @@ import (
 	"time"
 )
 
-func TCP(openPort, clientPort int) {
+func TCP(openPort, tunnelPort int) {
 
-	openListener, clientListener, clientConnPool, err := tcpServe(openPort, clientPort)
+	openListener, tunnelListener, tunnelConnPool, err := tcpServe(openPort, tunnelPort)
 	if err != nil {
 		base.Logger.Error(fmt.Sprintf("error starting listener on port %v: %v", openPort, err))
 		return
@@ -18,17 +18,18 @@ func TCP(openPort, clientPort int) {
 
 	defer func() {
 		openListener.Close()
-		clientListener.Close()
+		tunnelListener.Close()
 	}()
 
 	go func() {
 		for {
-			clientConn, err := clientListener.Accept()
+			clientConn, err := tunnelListener.Accept()
 			if err != nil {
+				openListener.Close()
 				base.Logger.Error(fmt.Sprintf("error accepting client connection: %v", err))
 				return
 			}
-			clientConnPool.Put(clientConn)
+			tunnelConnPool.Put(clientConn)
 		}
 	}()
 
@@ -38,28 +39,28 @@ func TCP(openPort, clientPort int) {
 			base.Logger.Error(fmt.Sprintf("error accepting open connection: %v", err))
 			return
 		}
-		go tcpHandle(openConn, clientConnPool)
+		go tcpHandle(openConn, tunnelConnPool)
 	}
 }
 
-func tcpServe(openPort, clientPort int) (net.Listener, net.Listener, *sync.Pool, error) {
+func tcpServe(openPort, tunnelPort int) (net.Listener, net.Listener, *sync.Pool, error) {
 
 	var pool sync.Pool
 	pool.New = func() interface{} {
 		return nil
 	}
 
-	openListener, err := net.Listen("tcp", fmt.Sprintf(":%v", openPort))
+	open, err := net.Listen("tcp", fmt.Sprintf(":%v", openPort))
 	if err != nil {
 		return nil, nil, &pool, err
 	}
 
-	clientListener, err := net.Listen("tcp", fmt.Sprintf(":%v", clientPort))
+	tunnel, err := net.Listen("tcp", fmt.Sprintf(":%v", tunnelPort))
 	if err != nil {
 		return nil, nil, &pool, err
 	}
 
-	return openListener, clientListener, &pool, nil
+	return open, tunnel, &pool, nil
 }
 
 func tcpHandle(openConn net.Conn, clientConnPool *sync.Pool) {

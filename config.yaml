@@ -1,13 +1,16 @@
 app:
   protocol: tcp
   mode: client
+  secret: default
+  # server config
   servers:
     - open-port: 9090
-      client-port: 8080
+      tunnel-port: 8080
+  # client config
   clients:
-    - idle-num: 5
-      remote-addr: 0.0.0.0:8080
+    - tunnel-addr: 0.0.0.0:8080
       local-port: 7070
+      idle-num: 5
   log:
     path: ./logs
     size: 1

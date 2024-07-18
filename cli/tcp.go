@@ -8,32 +8,37 @@ import (
 	"time"
 )
 
-func TCP(remoteAddr string, localPort int) {
+func TCP(tunnelAddr string, localPort int) {
 	for {
 		// 连接到服务端
-		remoteConn, err := net.Dial("tcp", remoteAddr)
+		tunnelConn, err := net.Dial("tcp", tunnelAddr)
 		if err != nil {
-			base.Println(31, 40, fmt.Sprintf("remote server [%v] connection failed: %s", remoteAddr, err.Error()))
-			base.Logger.Error(fmt.Sprintf("error connecting to server: %v", err))
+			base.Println(31, 40, fmt.Sprintf("tunnel server [%v] connection failed: %s", tunnelAddr, err.Error()))
+			base.Logger.Error(fmt.Sprintf("error connecting to tunnel server: %v", err))
 			time.Sleep(5 * time.Second)
 			continue
 		}
 
-		err = tcpHandle(remoteAddr, localPort, remoteConn)
+		err = tcpHandle(localPort, tunnelConn)
 		if err != nil {
-			remoteConn.Close()
-			base.Logger.Error(fmt.Sprintf("[%v] -> [%v] connection error: %s", localPort, remoteAddr, err.Error()))
-			base.Println(33, 40, fmt.Sprintf("[%v] -> [%v] connection error: %s", localPort, remoteAddr, err.Error()))
+			base.Logger.Error(fmt.Sprintf("tunnel [%v] -> [%v] connection failed: %s", localPort, tunnelAddr, err.Error()))
+			base.Println(33, 40, fmt.Sprintf("tunnel [%v] -> [%v] connection failed: %s", localPort, tunnelAddr, err.Error()))
+		} else {
+			base.Println(32, 40, fmt.Sprintf("tunnel [%v] -> [%v] connection success", localPort, tunnelAddr))
 		}
-
-		base.Println(33, 40, fmt.Sprintf("[%v] -> [%v] connection close", localPort, remoteAddr))
 	}
 }
 
-func tcpHandle(remoteAddr string, localPort int, remoteConn net.Conn) error {
+func tcpHandle(localPort int, tunnelConn net.Conn) (err error) {
+
+	defer func() {
+		if err != nil {
+			tunnelConn.Close()
+		}
+	}()
 
 	var header = make([]byte, 8)
-	_, err := remoteConn.Read(header)
+	_, err = tunnelConn.Read(header)
 	if err != nil {
 		return err
 	}
@@ -47,8 +52,7 @@ func tcpHandle(remoteAddr string, localPort int, remoteConn net.Conn) error {
 		}
 
 		// 成功建立连接，return
-		base.Println(32, 40, fmt.Sprintf("[%v] -> [%v] connection success", localPort, remoteAddr))
-		go base.CopyConn(localConn, remoteConn)
+		go base.CopyConn(localConn, tunnelConn)
 		return nil
 	}
 	return errors.New("bad server command")

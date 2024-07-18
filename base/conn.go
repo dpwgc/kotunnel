@@ -7,14 +7,14 @@ import (
 )
 
 func CopyConn(local, remote net.Conn) {
-	defer remote.Close()
-	defer local.Close()
 	go func() {
 		io.Copy(local, remote)
 		remote.Close()
 		local.Close()
 	}()
 	io.Copy(remote, local)
+	remote.Close()
+	local.Close()
 }
 
 func Int64ToBytes(num int64, len int) []byte {

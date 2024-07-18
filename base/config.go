@@ -14,6 +14,7 @@ type ConfigOptions struct {
 type AppOptions struct {
 	Protocol string          `yaml:"protocol" json:"protocol"`
 	Mode     string          `yaml:"mode" json:"mode"`
+	Secret   string          `yaml:"secret" json:"secret"`
 	Servers  []ServerOptions `yaml:"servers" json:"servers"`
 	Clients  []ClientOptions `yaml:"clients" json:"clients"`
 	Log      LogOptions      `yaml:"log" json:"log"`
@@ -21,11 +22,11 @@ type AppOptions struct {
 
 type ServerOptions struct {
 	OpenPort   int `yaml:"open-port" json:"openPort"`
-	ClientPort int `yaml:"client-port" json:"clientPort"`
+	TunnelPort int `yaml:"tunnel-port" json:"tunnelPort"`
 }
 
 type ClientOptions struct {
-	RemoteAddr string `yaml:"remote-addr" json:"remoteAddr"`
+	TunnelAddr string `yaml:"tunnel-addr" json:"tunnelAddr"`
 	LocalPort  int    `yaml:"local-port" json:"localPort"`
 	IdleNum    int    `yaml:"idle-num" json:"idleNum"`
 }
