@@ -21,10 +21,10 @@ func TCP(tunnelAddr string, localPort int) {
 
 		err = tcpHandle(localPort, tunnelConn)
 		if err != nil {
-			base.Logger.Error(fmt.Sprintf("tunnel [%v] -> [%v] connection failed: %s", localPort, tunnelAddr, err.Error()))
-			base.Println(33, 40, fmt.Sprintf("tunnel [%v] -> [%v] connection failed: %s", localPort, tunnelAddr, err.Error()))
+			base.Logger.Error(fmt.Sprintf("tunnel [%v] -> [%v] create failed: %s", localPort, tunnelAddr, err.Error()))
+			base.Println(33, 40, fmt.Sprintf("tunnel [%v] -> [%v] create failed: %s", localPort, tunnelAddr, err.Error()))
 		} else {
-			base.Println(32, 40, fmt.Sprintf("tunnel [%v] -> [%v] connection success", localPort, tunnelAddr))
+			base.Println(32, 40, fmt.Sprintf("tunnel [%v] -> [%v] create success", localPort, tunnelAddr))
 		}
 	}
 }

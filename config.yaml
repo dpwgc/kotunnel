@@ -1,6 +1,6 @@
 app:
-  protocol: tcp
   mode: client
+  protocol: tcp
   secret: default
   # server config
   servers:
