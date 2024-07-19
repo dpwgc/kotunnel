@@ -71,13 +71,13 @@ func tcpHandle(conn net.Conn, secret string) (err error) {
 	}()
 
 	// 密钥验证
-	var bs = make([]byte, 32)
-	_, err = conn.Read(bs)
+	var bs32 = make([]byte, 32)
+	_, err = conn.Read(bs32)
 	if err != nil {
 		return err
 	}
 	// 密钥匹配
-	if fmt.Sprintf("%x", bs) == fmt.Sprintf("%x", sha256.Sum256([]byte(secret))) {
+	if fmt.Sprintf("%x", bs32) != fmt.Sprintf("%x", sha256.Sum256([]byte(secret))) {
 		return errors.New("secret error")
 	}
 	// 响应验证结果
