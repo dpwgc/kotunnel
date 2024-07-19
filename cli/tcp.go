@@ -47,7 +47,7 @@ func tcpHandle(localPort int, tunnelConn net.Conn, secret string) (err error) {
 	_, err = tunnelConn.Write(bs32[:31])
 	if err != nil {
 		useSleep = true
-		return errors.New(err.Error())
+		return err
 	}
 
 	var bs8 = make([]byte, 8)
@@ -56,7 +56,7 @@ func tcpHandle(localPort int, tunnelConn net.Conn, secret string) (err error) {
 	_, err = tunnelConn.Read(bs8)
 	if err != nil {
 		useSleep = true
-		return errors.New(err.Error())
+		return err
 	}
 
 	_, err = tunnelConn.Read(bs8)
