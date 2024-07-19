@@ -2,11 +2,10 @@ package ser
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"kotunnel/base"
 	"net"
-	"sync"
-	"time"
 )
 
 func TCP(openPort, tunnelPort int, secret string) {
@@ -29,34 +28,18 @@ func TCP(openPort, tunnelPort int, secret string) {
 			tunnelConn, err := tunnelListener.Accept()
 			if err != nil {
 				openListener.Close()
-				base.Logger.Error(fmt.Sprintf("tunnel connection accept error: %s", err.Error()))
+				base.Logger.Error(fmt.Sprintf("tunnel listener error: %s", err.Error()))
 				return
 			}
 
-			// 密钥验证
-			var bs = make([]byte, 32)
-			_, err = tunnelConn.Read(bs)
+			err = tcpHandle(tunnelConn, secret)
 			if err != nil {
-				tunnelConn.Close()
-				base.Logger.Error(fmt.Sprintf("tunnel connection read error: %s", err.Error()))
-				continue
-			}
-			// 密钥匹配
-			if fmt.Sprintf("%x", bs) == fmt.Sprintf("%x", sha256.Sum256([]byte(secret))) {
-				tunnelConn.Close()
-				base.Logger.Error("tunnel connection secret error")
-				continue
-			}
-			// 响应验证结果
-			_, err = tunnelConn.Write(base.Int64ToBytes(1, 8))
-			if err != nil {
-				tunnelConn.Close()
-				base.Logger.Error(fmt.Sprintf("tunnel connection write error: %s", err.Error()))
+				base.Logger.Error(fmt.Sprintf("tunnel [%s] -> [%v] connection fail: %s", tunnelConn.RemoteAddr().String(), tunnelPort, err.Error()))
 				continue
 			}
 
 			// 将隧道连接放入连接池
-			tunnelConnPool.Put(tunnelConn)
+			tunnelConnPool <- tunnelConn
 		}
 	}()
 
@@ -64,61 +47,91 @@ func TCP(openPort, tunnelPort int, secret string) {
 	for {
 		openConn, err := openListener.Accept()
 		if err != nil {
-			base.Logger.Error(fmt.Sprintf("open connection accept error: %s", err.Error()))
+			base.Logger.Error(fmt.Sprintf("open listener error: %s", err.Error()))
 			return
 		}
-		go tcpHandle(openConn, tunnelConnPool)
+		go func() {
+			err = tcpCopy(openConn, tunnelConnPool)
+			if err != nil {
+				base.Logger.Error(fmt.Sprintf("tcp connection copy fail: %s", err.Error()))
+				return
+			}
+		}()
 	}
 }
 
-func tcpServe(openPort, tunnelPort int) (net.Listener, net.Listener, *sync.Pool, error) {
+func tcpHandle(conn net.Conn, secret string) (err error) {
 
-	var pool sync.Pool
-	pool.New = func() interface{} {
-		return nil
+	defer func() {
+		if err != nil {
+			conn.Close()
+		}
+	}()
+
+	// 密钥验证
+	var bs = make([]byte, 32)
+	_, err = conn.Read(bs)
+	if err != nil {
+		return err
 	}
+	// 密钥匹配
+	if fmt.Sprintf("%x", bs) == fmt.Sprintf("%x", sha256.Sum256([]byte(secret))) {
+		return errors.New("secret error")
+	}
+	// 响应验证结果
+	_, err = conn.Write(base.Int64ToBytes(1, 8))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func tcpServe(openPort, tunnelPort int) (net.Listener, net.Listener, chan net.Conn, error) {
+
+	var pool = make(chan net.Conn, 500)
 
 	open, err := net.Listen("tcp", fmt.Sprintf(":%v", openPort))
 	if err != nil {
-		return nil, nil, &pool, err
+		return nil, nil, pool, err
 	}
 
 	tunnel, err := net.Listen("tcp", fmt.Sprintf(":%v", tunnelPort))
 	if err != nil {
-		return nil, nil, &pool, err
+		return nil, nil, pool, err
 	}
 
-	return open, tunnel, &pool, nil
+	return open, tunnel, pool, nil
 }
 
-func tcpHandle(openConn net.Conn, tunnelConnPool *sync.Pool) {
-	retry := 0
+func tcpCopy(openConn net.Conn, tunnelConnPool chan net.Conn) error {
+
+	defer openConn.Close()
+
+	var tunnelConn net.Conn = nil
 	for {
-		retry++
-		// 超过最大重试次数
-		if retry > 200 {
-			openConn.Close()
-			base.Logger.Error("reached maximum retry limit")
-			return
-		}
-
-		cache := tunnelConnPool.Get()
-		if cache == nil {
-			base.Logger.Error("connection pool is empty")
-			time.Sleep(50 * time.Millisecond)
-			continue
-		}
-
-		tunnelConn := cache.(net.Conn)
+		tunnelConn = <-tunnelConnPool
 		_, err := tunnelConn.Write(base.Int64ToBytes(1, 8))
 		if err != nil {
 			tunnelConn.Close()
-			base.Logger.Error(fmt.Sprintf("tunnel connection accept error: %s", err.Error()))
-			time.Sleep(50 * time.Millisecond)
+			base.Logger.Error(fmt.Sprintf("tunnel connection write error: %s", err.Error()))
 			continue
 		}
-
-		base.CopyConn(tunnelConn, openConn)
-		return
+		break
 	}
+
+	defer tunnelConn.Close()
+
+	bs8 := make([]byte, 8)
+	_, err := tunnelConn.Read(bs8)
+	if err != nil {
+		return err
+	}
+
+	cmd := base.BytesToInt64(bs8)
+	if cmd == 1 {
+		base.CopyConn(tunnelConn, openConn)
+	} else {
+		return errors.New("bad command")
+	}
+	return nil
 }

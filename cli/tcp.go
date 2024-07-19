@@ -64,9 +64,15 @@ func tcpHandle(localPort int, tunnelConn net.Conn) (err error) {
 
 	cmd := base.BytesToInt64(bs8)
 	if cmd == 1 {
+
 		localConn, err := net.Dial("tcp", fmt.Sprintf(":%v", localPort))
 		if err != nil {
 			useSleep = true
+			return err
+		}
+
+		_, err = tunnelConn.Write(base.Int64ToBytes(1, 8))
+		if err != nil {
 			return err
 		}
 
@@ -74,5 +80,5 @@ func tcpHandle(localPort int, tunnelConn net.Conn) (err error) {
 		go base.CopyConn(localConn, tunnelConn)
 		return nil
 	}
-	return errors.New("bad server command")
+	return errors.New("bad command")
 }
