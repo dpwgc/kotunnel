@@ -12,7 +12,7 @@ func TCP(openPort, tunnelPort int, secret string) {
 
 	openListener, tunnelListener, tunnelConnPool, err := tcpServe(openPort, tunnelPort)
 	if err != nil {
-		base.Logger.Error(fmt.Sprintf("start listener error: %s", err.Error()))
+		base.Println(31, 40, fmt.Sprintf("listener start failed: %s", err.Error()))
 		return
 	}
 
@@ -28,15 +28,17 @@ func TCP(openPort, tunnelPort int, secret string) {
 			tunnelConn, err := tunnelListener.Accept()
 			if err != nil {
 				openListener.Close()
-				base.Logger.Error(fmt.Sprintf("tunnel listener error: %s", err.Error()))
+				base.Println(31, 40, fmt.Sprintf("listener accept failed: %s", err.Error()))
 				return
 			}
 
 			err = tcpHandle(tunnelConn, secret)
 			if err != nil {
-				base.Logger.Error(fmt.Sprintf("tunnel [%s] -> [%v] connection fail: %s", tunnelConn.RemoteAddr().String(), tunnelPort, err.Error()))
+				base.Println(31, 40, fmt.Sprintf("tunnel [%v] -> [%v] create failed: %s", tunnelConn.RemoteAddr().String(), tunnelConn.LocalAddr().String(), err.Error()))
 				continue
 			}
+
+			base.Println(32, 40, fmt.Sprintf("tunnel [%v] -> [%v] create success", tunnelConn.RemoteAddr().String(), tunnelConn.LocalAddr().String()))
 
 			// 将隧道连接放入连接池
 			tunnelConnPool <- tunnelConn
@@ -47,13 +49,13 @@ func TCP(openPort, tunnelPort int, secret string) {
 	for {
 		openConn, err := openListener.Accept()
 		if err != nil {
-			base.Logger.Error(fmt.Sprintf("open listener error: %s", err.Error()))
+			base.Println(31, 40, fmt.Sprintf("listener accept failed: %s", err.Error()))
 			return
 		}
 		go func() {
 			err = tcpCopy(openConn, tunnelConnPool)
 			if err != nil {
-				base.Logger.Error(fmt.Sprintf("tcp connection copy fail: %s", err.Error()))
+				base.Println(31, 40, fmt.Sprintf("tcp [%v] -> [%v] connection copy fail: %s", tunnelPort, openPort, err.Error()))
 				return
 			}
 		}()
@@ -113,9 +115,10 @@ func tcpCopy(openConn net.Conn, tunnelConnPool chan net.Conn) error {
 		_, err := tunnelConn.Write(base.Int64ToBytes(1, 8))
 		if err != nil {
 			tunnelConn.Close()
-			base.Logger.Error(fmt.Sprintf("tunnel connection write error: %s", err.Error()))
+			base.Println(31, 40, fmt.Sprintf("tunnel connection write error: %s", err.Error()))
 			continue
 		}
+		base.Println(32, 40, fmt.Sprintf("tunnel [%v] -> [%v] available", tunnelConn.RemoteAddr().String(), tunnelConn.LocalAddr().String()))
 		break
 	}
 
