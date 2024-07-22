@@ -44,7 +44,7 @@ func tcpHandle(localPort int, tunnelConn net.Conn, secret string) (err error) {
 
 	// 密钥验证
 	bs32 := sha256.Sum256([]byte(secret))
-	_, err = tunnelConn.Write(bs32[:31])
+	_, err = tunnelConn.Write(bs32[:32])
 	if err != nil {
 		useSleep = true
 		return err

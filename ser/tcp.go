@@ -77,6 +77,7 @@ func tcpHandle(conn net.Conn, secret string) (err error) {
 		return err
 	}
 	// 密钥匹配
+	// fmt.Println(fmt.Sprintf("%x", bs32), fmt.Sprintf("%x", sha256.Sum256([]byte(secret))))
 	if fmt.Sprintf("%x", bs32) != fmt.Sprintf("%x", sha256.Sum256([]byte(secret))) {
 		return errors.New("secret error")
 	}
