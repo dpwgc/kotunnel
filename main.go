@@ -13,12 +13,8 @@ func main() {
 
 	// 配置加载
 	base.InitConfig(os.Args)
-	marshal, _ := json.Marshal(base.Config().App)
-
 	// 日志加载
 	base.InitLog()
-
-	base.Println(33, 40, "config: "+string(marshal))
 
 	// 服务端 or 客户端
 	if base.Config().App.Mode == "server" {

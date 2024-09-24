@@ -5,11 +5,17 @@ import (
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"kotunnel/base"
 	"kotunnel/cli"
 	"os"
+	"slices"
+	"strings"
 )
+
+const HisMax = 6
 
 func main() {
 
@@ -18,44 +24,38 @@ func main() {
 	myApp := app.New()
 	myWindow := myApp.NewWindow("KoTunnel GUI")
 	myWindow.Resize(fyne.Size{
-		Width: 400,
+		Width: 700,
 	})
 
-	var args []string
+	var args [][]string
 	cache, _ := os.ReadFile("./gui_cache")
 	_ = json.Unmarshal(cache, &args)
 
-	protocol := widget.NewEntry()
-	protocol.SetPlaceHolder("tcp")
-	if len(args) > 0 {
-		protocol.SetText(args[0])
-	}
+	protocol := widget.NewSelect([]string{"TCP", "UDP"}, func(s string) {})
+	protocol.SetSelected("TCP")
 
-	secret := widget.NewEntry()
+	secret := widget.NewPasswordEntry()
 	secret.SetPlaceHolder("123456")
-	if len(args) > 1 {
-		secret.SetText(args[1])
-	}
 
 	tunnelAddr := widget.NewEntry()
 	tunnelAddr.SetPlaceHolder("127.0.0.1:8080")
-	if len(args) > 2 {
-		tunnelAddr.SetText(args[2])
-	}
 
 	localPort := widget.NewEntry()
 	localPort.SetPlaceHolder("9090")
-	if len(args) > 3 {
-		localPort.SetText(args[3])
-	}
 
 	idleNum := widget.NewEntry()
 	idleNum.SetPlaceHolder("5")
-	if len(args) > 4 {
-		idleNum.SetText(args[4])
-	}
 
-	tip := widget.NewLabel("")
+	if len(args) > 0 {
+		row := args[len(args)-1]
+		if row[0] == "tcp" || row[0] == "udp" {
+			protocol.SetSelected(strings.ToUpper(row[0]))
+		}
+		secret.SetText(row[1])
+		tunnelAddr.SetText(row[2])
+		localPort.SetText(row[3])
+		idleNum.SetText(row[4])
+	}
 
 	form := &widget.Form{
 		Items: []*widget.FormItem{ // we can specify items in the constructor
@@ -64,44 +64,83 @@ func main() {
 			{Text: "Tunnel addr", Widget: tunnelAddr},
 			{Text: "Local port", Widget: localPort},
 			{Text: "Idle num", Widget: idleNum},
-			{Text: "", Widget: tip},
 		},
 		OnSubmit: func() { // optional, handle form submission
-			if started {
-				tip.SetText("It's already started, cannot be restarted.")
-				return
-			}
-			bytes, _ := json.Marshal([]string{protocol.Text, secret.Text, tunnelAddr.Text, localPort.Text, idleNum.Text})
-			_ = os.WriteFile("./gui_cache", bytes, 0644)
-			// 配置加载
-			base.InitConfig([]string{"./main", "client", protocol.Text, secret.Text, tunnelAddr.Text, localPort.Text, idleNum.Text})
-			marshal, _ := json.Marshal(base.Config().App)
-			// 日志加载
-			base.InitLog()
-			base.Println(33, 40, "config: "+string(marshal))
 			started = true
-			tip.SetText("It's already started.")
-			go client(base.Config().App)
-			// myWindow.Close()
+			myWindow.Close()
 		},
 		SubmitText: "Run",
 	}
 
-	myWindow.SetContent(form)
+	// 创建一个容器来模拟表格
+	table := container.NewVBox()
+
+	for index, item := range args {
+
+		line := container.NewHBox()
+
+		// 创建一个按钮
+		button := widget.NewButton(strings.ToUpper(item[0]), func(i int) func() {
+			return func() {
+				row := args[i]
+				if row[0] == "tcp" || row[0] == "udp" {
+					protocol.SetSelected(strings.ToUpper(row[0]))
+				}
+				secret.SetText(row[1])
+				tunnelAddr.SetText(row[2])
+				localPort.SetText(row[3])
+				idleNum.SetText(row[4])
+			}
+		}(index))
+
+		// 将文本和按钮添加到行容器
+		text := item[2] + " -> " + item[3] + " (" + item[4] + ")"
+		if len(text) > 50 {
+			text = text[:50] + "..."
+		}
+		line.Add(button)
+		line.Add(widget.NewLabel(text))
+		table.Add(line)
+	}
+
+	myWindow.SetContent(container.New(layout.NewGridLayout(2), table, form))
 	myWindow.ShowAndRun()
+
+	if started {
+
+		newAdd := []string{strings.ToLower(protocol.Selected), secret.Text, tunnelAddr.Text, localPort.Text, idleNum.Text}
+		if len(args) <= 0 {
+			args = [][]string{newAdd}
+		} else {
+			// 检查一下，历史记录里有一样的，就不往里加了
+			var check []string
+			for _, v := range args {
+				check = append(check, strings.Join(v, ","))
+			}
+			if !slices.Contains(check, strings.Join(newAdd, ",")) {
+				args = append(args, newAdd)
+			}
+		}
+		if len(args) > HisMax {
+			args = args[len(args)-HisMax:]
+		}
+
+		bytes, _ := json.Marshal(args)
+		_ = os.WriteFile("./gui_cache", bytes, 0644)
+		base.InitConfig([]string{"", "client", newAdd[0], newAdd[1], newAdd[2], newAdd[3], newAdd[4]})
+		base.InitLog()
+		base.Println(32, 40, "client is running, do not close cmd window")
+		client(base.Config().App)
+	}
 }
 
 func client(opts base.AppOptions) {
 	if opts.Protocol == "udp" {
 		// TODO
 	} else {
-		for _, v := range opts.Clients {
-			bytes, _ := json.Marshal(v)
-			base.Println(36, 40, fmt.Sprintf("tcp client: %s", string(bytes)))
-			for i := 0; i < v.IdleNum-1; i++ {
-				go cli.TCP(v.TunnelAddr, v.LocalPort, opts.Secret)
-			}
-			cli.TCP(v.TunnelAddr, v.LocalPort, opts.Secret)
-		}
+		conf := opts.Clients[0]
+		bytes, _ := json.Marshal(conf)
+		base.Println(36, 40, fmt.Sprintf("tcp client: %s", string(bytes)))
+		cli.TCP(conf.TunnelAddr, conf.LocalPort, opts.Secret)
 	}
 }
