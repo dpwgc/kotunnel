@@ -46,6 +46,11 @@ func main() {
 	idleNum := widget.NewEntry()
 	idleNum.SetPlaceHolder("5")
 
+	runButton := widget.NewButton("Run", func() {
+		started = true
+		myWindow.Close()
+	})
+
 	if len(args) > 0 {
 		row := args[len(args)-1]
 		if row[0] == "tcp" || row[0] == "udp" {
@@ -59,28 +64,27 @@ func main() {
 
 	form := &widget.Form{
 		Items: []*widget.FormItem{ // we can specify items in the constructor
+			{Widget: widget.NewLabel("")},
 			{Text: "Protocol", Widget: protocol},
 			{Text: "Secret", Widget: secret},
 			{Text: "Tunnel addr", Widget: tunnelAddr},
 			{Text: "Local port", Widget: localPort},
 			{Text: "Idle num", Widget: idleNum},
+			{Widget: runButton},
+			{Widget: widget.NewLabel("")},
 		},
-		OnSubmit: func() { // optional, handle form submission
-			started = true
-			myWindow.Close()
-		},
-		SubmitText: "Run",
 	}
 
 	// 创建一个容器来模拟表格
 	table := container.NewVBox()
 
+	table.Add(widget.NewLabel(""))
 	for index, item := range args {
 
 		line := container.NewHBox()
 
 		// 创建一个按钮
-		button := widget.NewButton(strings.ToUpper(item[0]), func(i int) func() {
+		button := widget.NewButton("Use", func(i int) func() {
 			return func() {
 				row := args[i]
 				if row[0] == "tcp" || row[0] == "udp" {
@@ -93,17 +97,21 @@ func main() {
 			}
 		}(index))
 
-		// 将文本和按钮添加到行容器
-		text := item[2] + " -> " + item[3] + " (" + item[4] + ")"
-		if len(text) > 50 {
-			text = text[:50] + "..."
-		}
+		line.Add(widget.NewLabel(" "))
 		line.Add(button)
-		line.Add(widget.NewLabel(text))
+		line.Add(widget.NewLabel(strings.ToUpper(item[0])))
+		addr := item[2]
+		if len(addr) > 30 {
+			addr = addr[:30] + "..."
+		}
+		line.Add(widget.NewLabel(addr))
+		line.Add(widget.NewLabel(item[3]))
+		line.Add(widget.NewLabel(item[4]))
 		table.Add(line)
 	}
+	table.Add(widget.NewLabel(""))
 
-	myWindow.SetContent(container.New(layout.NewGridLayout(2), table, form))
+	myWindow.SetContent(container.New(layout.NewGridLayout(2), form, table))
 	myWindow.ShowAndRun()
 
 	if started {
