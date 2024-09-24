@@ -17,6 +17,11 @@ import (
 
 const HisMax = 6
 
+type Cache struct {
+	Last    []string
+	History [][]string
+}
+
 func main() {
 
 	started := false
@@ -27,9 +32,9 @@ func main() {
 		Width: 700,
 	})
 
-	var args [][]string
-	cache, _ := os.ReadFile("./gui_cache")
-	_ = json.Unmarshal(cache, &args)
+	var cache Cache
+	data, _ := os.ReadFile("./gui_cache")
+	_ = json.Unmarshal(data, &cache)
 
 	protocol := widget.NewSelect([]string{"TCP", "UDP"}, func(s string) {})
 	protocol.SetSelected("TCP")
@@ -51,25 +56,24 @@ func main() {
 		myWindow.Close()
 	})
 
-	if len(args) > 0 {
-		row := args[len(args)-1]
-		if row[0] == "tcp" || row[0] == "udp" {
-			protocol.SetSelected(strings.ToUpper(row[0]))
+	if len(cache.Last) > 0 {
+		if cache.Last[0] == "tcp" || cache.Last[0] == "udp" {
+			protocol.SetSelected(strings.ToUpper(cache.Last[0]))
 		}
-		secret.SetText(row[1])
-		tunnelAddr.SetText(row[2])
-		localPort.SetText(row[3])
-		idleNum.SetText(row[4])
+		secret.SetText(cache.Last[1])
+		tunnelAddr.SetText(cache.Last[2])
+		localPort.SetText(cache.Last[3])
+		idleNum.SetText(cache.Last[4])
 	}
 
 	form := &widget.Form{
 		Items: []*widget.FormItem{ // we can specify items in the constructor
 			{Widget: widget.NewLabel("")},
-			{Text: "Protocol", Widget: protocol},
-			{Text: "Secret", Widget: secret},
-			{Text: "Tunnel addr", Widget: tunnelAddr},
-			{Text: "Local port", Widget: localPort},
-			{Text: "Idle num", Widget: idleNum},
+			{Text: "  Protocol", Widget: protocol},
+			{Text: "  Secret", Widget: secret},
+			{Text: "  Tunnel", Widget: tunnelAddr},
+			{Text: "  Local", Widget: localPort},
+			{Text: "  Idle", Widget: idleNum},
 			{Widget: runButton},
 			{Widget: widget.NewLabel("")},
 		},
@@ -79,14 +83,14 @@ func main() {
 	table := container.NewVBox()
 
 	table.Add(widget.NewLabel(""))
-	for index, item := range args {
+	for index, item := range cache.History {
 
 		line := container.NewHBox()
 
 		// 创建一个按钮
 		button := widget.NewButton("Use", func(i int) func() {
 			return func() {
-				row := args[i]
+				row := cache.History[i]
 				if row[0] == "tcp" || row[0] == "udp" {
 					protocol.SetSelected(strings.ToUpper(row[0]))
 				}
@@ -107,6 +111,7 @@ func main() {
 		line.Add(widget.NewLabel(addr))
 		line.Add(widget.NewLabel(item[3]))
 		line.Add(widget.NewLabel(item[4]))
+		line.Add(widget.NewLabel(" "))
 		table.Add(line)
 	}
 	table.Add(widget.NewLabel(""))
@@ -117,27 +122,28 @@ func main() {
 	if started {
 
 		newAdd := []string{strings.ToLower(protocol.Selected), secret.Text, tunnelAddr.Text, localPort.Text, idleNum.Text}
-		if len(args) <= 0 {
-			args = [][]string{newAdd}
+		cache.Last = newAdd
+		if len(cache.History) <= 0 {
+			cache.History = [][]string{newAdd}
 		} else {
 			// 检查一下，历史记录里有一样的，就不往里加了
 			var check []string
-			for _, v := range args {
+			for _, v := range cache.History {
 				check = append(check, strings.Join(v, ","))
 			}
 			if !slices.Contains(check, strings.Join(newAdd, ",")) {
-				args = append(args, newAdd)
+				cache.History = append(cache.History, newAdd)
 			}
 		}
-		if len(args) > HisMax {
-			args = args[len(args)-HisMax:]
+		if len(cache.History) > HisMax {
+			cache.History = cache.History[len(cache.History)-HisMax:]
 		}
 
-		bytes, _ := json.Marshal(args)
+		bytes, _ := json.Marshal(cache)
 		_ = os.WriteFile("./gui_cache", bytes, 0644)
 		base.InitConfig([]string{"", "client", newAdd[0], newAdd[1], newAdd[2], newAdd[3], newAdd[4]})
 		base.InitLog()
-		base.Println(32, 40, "client is running, do not close cmd window")
+		base.Println(32, 40, "client is running (do not close this window)")
 		client(base.Config().App)
 	}
 }
