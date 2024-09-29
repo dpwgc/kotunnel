@@ -83,13 +83,12 @@ func main() {
 			newAdd := []string{strings.ToLower(protocol.Selected), secret.Text, tunnelAddr.Text, localPort.Text, idleNum.Text}
 			newAddToString := strings.Join(newAdd, ",")
 			if !buttonLock.Lock(newAddToString) {
-				tip.SetText("This tunnel has been started, do not repeat the operation!")
+				tip.SetText("Do not repeat the operation!")
 				return
 			}
 			defer func() {
 				buttonLock.Unlock(newAddToString)
 			}()
-			tip.SetText("This tunnel has been started, do not close the window!")
 			cache.Last = newAdd
 			if len(cache.History) <= 0 {
 				cache.History = [][]string{newAdd}
