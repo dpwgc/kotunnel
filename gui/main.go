@@ -13,9 +13,36 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 )
 
 const HisMax = 6
+
+type ButtonLock struct {
+	m map[string]bool
+	l sync.Mutex
+}
+
+var buttonLock = &ButtonLock{
+	m: make(map[string]bool),
+	l: sync.Mutex{},
+}
+
+func (bl *ButtonLock) Lock(key string) bool {
+	bl.l.Lock()
+	defer bl.l.Unlock()
+	if bl.m[key] {
+		return false
+	}
+	bl.m[key] = true
+	return true
+}
+
+func (bl *ButtonLock) Unlock(key string) {
+	bl.l.Lock()
+	defer bl.l.Unlock()
+	bl.m[key] = false
+}
 
 type Cache struct {
 	Last    []string
@@ -23,8 +50,6 @@ type Cache struct {
 }
 
 func main() {
-
-	started := false
 
 	myApp := app.New()
 	myWindow := myApp.NewWindow("KoTunnel GUI")
@@ -51,9 +76,44 @@ func main() {
 	idleNum := widget.NewEntry()
 	idleNum.SetPlaceHolder("5")
 
+	tip := widget.NewLabel("")
+
 	runButton := widget.NewButton("Run", func() {
-		started = true
-		myWindow.Close()
+		go func() {
+			newAdd := []string{strings.ToLower(protocol.Selected), secret.Text, tunnelAddr.Text, localPort.Text, idleNum.Text}
+			newAddToString := strings.Join(newAdd, ",")
+			if !buttonLock.Lock(newAddToString) {
+				tip.SetText("This tunnel has been started, do not repeat the operation!")
+				return
+			}
+			defer func() {
+				buttonLock.Unlock(newAddToString)
+			}()
+			tip.SetText("This tunnel has been started, do not close the window!")
+			cache.Last = newAdd
+			if len(cache.History) <= 0 {
+				cache.History = [][]string{newAdd}
+			} else {
+				// 检查一下，历史记录里有一样的，就不往里加了
+				var check []string
+				for _, v := range cache.History {
+					check = append(check, strings.Join(v, ","))
+				}
+				if !slices.Contains(check, newAddToString) {
+					cache.History = append(cache.History, newAdd)
+				}
+			}
+			if len(cache.History) > HisMax {
+				cache.History = cache.History[len(cache.History)-HisMax:]
+			}
+
+			bytes, _ := json.Marshal(cache)
+			_ = os.WriteFile("./gui_cache", bytes, 0644)
+
+			base.InitConfig([]string{"", "client", newAdd[0], newAdd[1], newAdd[2], newAdd[3], newAdd[4]})
+			base.InitLog()
+			client(base.Config().App)
+		}()
 	})
 
 	if len(cache.Last) > 0 {
@@ -75,7 +135,7 @@ func main() {
 			{Text: "  Local", Widget: localPort},
 			{Text: "  Idle", Widget: idleNum},
 			{Widget: runButton},
-			{Widget: widget.NewLabel("")},
+			{Text: "  ", Widget: tip},
 		},
 	}
 
@@ -118,34 +178,6 @@ func main() {
 
 	myWindow.SetContent(container.New(layout.NewGridLayout(2), form, table))
 	myWindow.ShowAndRun()
-
-	if started {
-
-		newAdd := []string{strings.ToLower(protocol.Selected), secret.Text, tunnelAddr.Text, localPort.Text, idleNum.Text}
-		cache.Last = newAdd
-		if len(cache.History) <= 0 {
-			cache.History = [][]string{newAdd}
-		} else {
-			// 检查一下，历史记录里有一样的，就不往里加了
-			var check []string
-			for _, v := range cache.History {
-				check = append(check, strings.Join(v, ","))
-			}
-			if !slices.Contains(check, strings.Join(newAdd, ",")) {
-				cache.History = append(cache.History, newAdd)
-			}
-		}
-		if len(cache.History) > HisMax {
-			cache.History = cache.History[len(cache.History)-HisMax:]
-		}
-
-		bytes, _ := json.Marshal(cache)
-		_ = os.WriteFile("./gui_cache", bytes, 0644)
-		base.InitConfig([]string{"", "client", newAdd[0], newAdd[1], newAdd[2], newAdd[3], newAdd[4]})
-		base.InitLog()
-		base.Println(32, 40, "client is running (do not close this window)")
-		client(base.Config().App)
-	}
 }
 
 func client(opts base.AppOptions) {
