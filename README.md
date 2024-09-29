@@ -6,9 +6,6 @@
 
 ## 使用方式
 
-* cd 到 cmd 或 gui 目录
-* 执行 go build main.go
-
 ***
 
 ### 服务端配置与启动
