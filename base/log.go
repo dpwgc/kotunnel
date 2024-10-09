@@ -18,7 +18,7 @@ func InitLog() {
 		MaxBackups: Config().App.Log.Backups,
 		Compress:   false,
 	}
-	Logger = slog.New(slog.NewJSONHandler(r, &slog.HandlerOptions{
+	Logger = slog.New(slog.NewTextHandler(r, &slog.HandlerOptions{
 		AddSource: true, // 输出日志语句的位置信息
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.TimeKey { // 格式化 key 为 "time" 的属性值

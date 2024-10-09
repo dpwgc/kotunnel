@@ -8,13 +8,13 @@ import (
 
 func CopyConn(local, remote net.Conn) {
 	go func() {
-		io.Copy(local, remote)
-		remote.Close()
-		local.Close()
+		_, _ = io.Copy(local, remote)
+		_ = remote.Close()
+		_ = local.Close()
 	}()
-	io.Copy(remote, local)
-	remote.Close()
-	local.Close()
+	_, _ = io.Copy(remote, local)
+	_ = remote.Close()
+	_ = local.Close()
 }
 
 func Int64ToBytes(num int64, len int) []byte {

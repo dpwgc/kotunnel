@@ -1,6 +1,6 @@
 app:
-  mode: client
-  protocol: tcp
+  # 'server' or 'client'
+  mode: server
   secret: default
   # server config
   servers:
@@ -10,7 +10,7 @@ app:
   clients:
     - tunnel-addr: 0.0.0.0:8080
       local-port: 7070
-      idle-num: 5
+      idle-num: 1
   log:
     path: ./logs
     size: 1

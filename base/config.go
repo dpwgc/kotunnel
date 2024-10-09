@@ -13,12 +13,11 @@ type ConfigOptions struct {
 }
 
 type AppOptions struct {
-	Protocol string          `yaml:"protocol" json:"protocol"`
-	Mode     string          `yaml:"mode" json:"mode"`
-	Secret   string          `yaml:"secret" json:"secret"`
-	Servers  []ServerOptions `yaml:"servers" json:"servers"`
-	Clients  []ClientOptions `yaml:"clients" json:"clients"`
-	Log      LogOptions      `yaml:"log" json:"log"`
+	Mode    string          `yaml:"mode" json:"mode"`
+	Secret  string          `yaml:"secret" json:"secret"`
+	Servers []ServerOptions `yaml:"servers" json:"servers"`
+	Clients []ClientOptions `yaml:"clients" json:"clients"`
+	Log     LogOptions      `yaml:"log" json:"log"`
 }
 
 type ServerOptions struct {
@@ -47,13 +46,12 @@ func Config() ConfigOptions {
 
 func InitConfig(args []string) {
 
-	// ./main server tcp {secret} {open-port} {tunnel-port}
-	// ./main client tcp {secret} {tunnel-addr} {local-port} {idle-num}
-	if len(args) >= 6 {
+	// ./main server {secret} {open-port} {tunnel-port}
+	// ./main client {secret} {tunnel-addr} {local-port} {idle-num}
+	if len(args) >= 5 {
 		opts := AppOptions{
-			Mode:     args[1],
-			Protocol: args[2],
-			Secret:   args[3],
+			Mode:   args[1],
+			Secret: args[2],
 			Log: LogOptions{
 				Path:    "./logs",
 				Size:    1,
@@ -62,20 +60,20 @@ func InitConfig(args []string) {
 			},
 		}
 		if opts.Mode == "server" {
-			open, _ := strconv.Atoi(args[4])
-			tunnel, _ := strconv.Atoi(args[5])
+			open, _ := strconv.Atoi(args[3])
+			tunnel, _ := strconv.Atoi(args[4])
 			opts.Servers = []ServerOptions{{
 				OpenPort:   open,
 				TunnelPort: tunnel,
 			}}
 		} else {
-			if len(args) == 6 {
-				args[6] = "10"
+			if len(args) == 5 {
+				args[5] = "1"
 			}
-			local, _ := strconv.Atoi(args[5])
-			idle, _ := strconv.Atoi(args[6])
+			local, _ := strconv.Atoi(args[4])
+			idle, _ := strconv.Atoi(args[5])
 			opts.Clients = []ClientOptions{{
-				TunnelAddr: args[4],
+				TunnelAddr: args[3],
 				LocalPort:  local,
 				IdleNum:    idle,
 			}}
@@ -88,13 +86,13 @@ func InitConfig(args []string) {
 	configBytes, err := os.ReadFile("./config.yaml")
 	if err != nil {
 		Println(31, 40, fmt.Sprintf("read config error: %s", err.Error()))
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 		panic(err)
 	}
 	err = yaml.Unmarshal(configBytes, &config)
 	if err != nil {
 		Println(31, 40, fmt.Sprintf("parse config error: %s", err.Error()))
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 		panic(err)
 	}
 }

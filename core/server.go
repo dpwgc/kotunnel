@@ -1,4 +1,4 @@
-package ser
+package core
 
 import (
 	"crypto/sha256"
@@ -8,31 +8,49 @@ import (
 	"net"
 )
 
-func TCP(openPort, tunnelPort int, secret string) {
+type Server struct {
+	openPort   int
+	tunnelPort int
+	secret     string
+	stop       bool
+}
 
-	openListener, tunnelListener, tunnelConnPool, err := tcpServe(openPort, tunnelPort)
+func NewServer(openPort, tunnelPort int, secret string) *Server {
+	return &Server{
+		openPort:   openPort,
+		tunnelPort: tunnelPort,
+		secret:     secret,
+		stop:       false,
+	}
+}
+
+func (s *Server) Run() {
+	openListener, tunnelListener, tunnelConnPool, err := s.serve()
 	if err != nil {
 		base.Println(31, 40, fmt.Sprintf("listener start failed: %s", err.Error()))
 		return
 	}
 
 	defer func() {
-		openListener.Close()
-		tunnelListener.Close()
+		_ = openListener.Close()
+		_ = tunnelListener.Close()
 	}()
 
 	// 隧道端口监听
 	go func() {
 		for {
+			if s.stop {
+				return
+			}
 			// 接受隧道连接
 			tunnelConn, err := tunnelListener.Accept()
 			if err != nil {
-				openListener.Close()
+				_ = openListener.Close()
 				base.Println(31, 40, fmt.Sprintf("listener accept failed: %s", err.Error()))
 				return
 			}
 
-			err = tcpHandle(tunnelConn, secret)
+			err = s.handle(tunnelConn)
 			if err != nil {
 				base.Println(31, 40, fmt.Sprintf("tunnel [%v] -> [%v] create failed: %s", tunnelConn.RemoteAddr().String(), tunnelConn.LocalAddr().String(), err.Error()))
 				continue
@@ -47,26 +65,33 @@ func TCP(openPort, tunnelPort int, secret string) {
 
 	// 开放端口监听
 	for {
+		if s.stop {
+			return
+		}
 		openConn, err := openListener.Accept()
 		if err != nil {
 			base.Println(31, 40, fmt.Sprintf("listener accept failed: %s", err.Error()))
 			return
 		}
 		go func() {
-			err = tcpCopy(openConn, tunnelConnPool)
+			err = s.copy(openConn, tunnelConnPool)
 			if err != nil {
-				base.Println(31, 40, fmt.Sprintf("tcp [%v] -> [%v] connection copy fail: %s", tunnelPort, openPort, err.Error()))
+				base.Println(31, 40, fmt.Sprintf("tcp [%v] -> [%v] connection copy fail: %s", s.tunnelPort, s.openPort, err.Error()))
 				return
 			}
 		}()
 	}
 }
 
-func tcpHandle(conn net.Conn, secret string) (err error) {
+func (s *Server) Stop() {
+	s.stop = true
+}
+
+func (s *Server) handle(conn net.Conn) (err error) {
 
 	defer func() {
 		if err != nil {
-			conn.Close()
+			_ = conn.Close()
 		}
 	}()
 
@@ -78,7 +103,7 @@ func tcpHandle(conn net.Conn, secret string) (err error) {
 	}
 	// 密钥匹配
 	// fmt.Println(fmt.Sprintf("%x", bs32), fmt.Sprintf("%x", sha256.Sum256([]byte(secret))))
-	if fmt.Sprintf("%x", bs32) != fmt.Sprintf("%x", sha256.Sum256([]byte(secret))) {
+	if fmt.Sprintf("%x", bs32) != fmt.Sprintf("%x", sha256.Sum256([]byte(s.secret))) {
 		return errors.New("secret error")
 	}
 	// 响应验证结果
@@ -89,16 +114,16 @@ func tcpHandle(conn net.Conn, secret string) (err error) {
 	return nil
 }
 
-func tcpServe(openPort, tunnelPort int) (net.Listener, net.Listener, chan net.Conn, error) {
+func (s *Server) serve() (net.Listener, net.Listener, chan net.Conn, error) {
 
 	var pool = make(chan net.Conn, 500)
 
-	open, err := net.Listen("tcp", fmt.Sprintf(":%v", openPort))
+	open, err := net.Listen("tcp", fmt.Sprintf(":%v", s.openPort))
 	if err != nil {
 		return nil, nil, pool, err
 	}
 
-	tunnel, err := net.Listen("tcp", fmt.Sprintf(":%v", tunnelPort))
+	tunnel, err := net.Listen("tcp", fmt.Sprintf(":%v", s.tunnelPort))
 	if err != nil {
 		return nil, nil, pool, err
 	}
@@ -106,7 +131,7 @@ func tcpServe(openPort, tunnelPort int) (net.Listener, net.Listener, chan net.Co
 	return open, tunnel, pool, nil
 }
 
-func tcpCopy(openConn net.Conn, tunnelConnPool chan net.Conn) error {
+func (s *Server) copy(openConn net.Conn, tunnelConnPool chan net.Conn) error {
 
 	defer openConn.Close()
 
@@ -115,7 +140,7 @@ func tcpCopy(openConn net.Conn, tunnelConnPool chan net.Conn) error {
 		tunnelConn = <-tunnelConnPool
 		_, err := tunnelConn.Write(base.Int64ToBytes(1, 8))
 		if err != nil {
-			tunnelConn.Close()
+			_ = tunnelConn.Close()
 			base.Println(31, 40, fmt.Sprintf("tunnel connection write error: %s", err.Error()))
 			continue
 		}
