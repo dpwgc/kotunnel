@@ -28,7 +28,7 @@ type ServerOptions struct {
 type ClientOptions struct {
 	TunnelAddr string `yaml:"tunnel-addr" json:"tunnelAddr"`
 	LocalPort  int    `yaml:"local-port" json:"localPort"`
-	IdleNum    int    `yaml:"idle-num" json:"idleNum"`
+	IdleConn   int    `yaml:"idle-conn" json:"idleConn"`
 }
 
 type LogOptions struct {
@@ -75,7 +75,7 @@ func InitConfig(args []string) {
 			opts.Clients = []ClientOptions{{
 				TunnelAddr: args[3],
 				LocalPort:  local,
-				IdleNum:    idle,
+				IdleConn:   idle,
 			}}
 		}
 		config.App = opts

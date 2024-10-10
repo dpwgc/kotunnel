@@ -8,13 +8,13 @@
 
 #### 程序入口 `/kotunnel/cmd/main.go`
 
-#### cd到cmd目录下，执行 go build main.go 进行打包
+#### cd 到 cmd 目录下，执行 go build main.go 进行打包
 
 ***
 
 ### 服务端配置与启动
 
-* 修改config.yaml配置，将mode设为server
+* 修改 config.yaml 配置，将 mode 设为 server
 
 ```yaml
 app:
@@ -39,7 +39,7 @@ app:
     backups: 1000
 ```
 
-* 配置好后，运行main程序，启动服务端
+* 配置好后，运行 main 程序，启动服务端
 
 ```
 ./main
@@ -49,7 +49,7 @@ app:
 
 ### 客户端配置与启动
 
-* 修改config.yaml配置，将mode设为client
+* 修改 config.yaml 配置，将 mode 设为 client
 
 ```yaml
 app:
@@ -61,7 +61,7 @@ app:
       # 需要对外暴露的本地端口号
       local-port: 7070
       # 最大空闲连接数（非高并发场景设为1即可）
-      idle-num: 1
+      idle-conn: 1
   log:
     path: ./logs
     size: 1
@@ -69,7 +69,7 @@ app:
     backups: 1000
 ```
 
-* 配置好后，运行main程序，启动客户端
+* 配置好后，运行 main 程序，启动客户端
 
 ```
 ./main
@@ -77,7 +77,7 @@ app:
 
 ***
 
-### 另一种启动方式：在运行main程序时传入配置参数
+### 另一种启动方式：在运行 main 程序时传入配置参数
 
 * 服务端运行命令
 
@@ -93,13 +93,16 @@ app:
 
 ```
 模版:
-./main client {secret} {tunnel-addr} {local-port} {idle-num}
+./main client {secret} {tunnel-addr} {local-port} {idle-conn}
 
 样例:
-./main client {secret} 0.0.0.0:8080 7070 1
+./main client default 0.0.0.0:8080 7070 1
+
+末尾的空闲连接数配置可省略，默认是1:
+./main client default 0.0.0.0:8080 7070
 ```
 
-#### 使用此方式运行程序，config.yaml配置只需要填写log相关配置，多余的客户端与服务端配置将被忽略
+#### 使用此方式运行程序，config.yaml 配置只需要填写 log 相关配置，多余的客户端与服务端配置将被忽略
 
 ```yaml
 app:

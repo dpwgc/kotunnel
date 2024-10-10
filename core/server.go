@@ -46,7 +46,7 @@ func (s *Server) Run() {
 			tunnelConn, err := tunnelListener.Accept()
 			if err != nil {
 				_ = openListener.Close()
-				base.Println(31, 40, fmt.Sprintf("listener accept failed: %s", err.Error()))
+				base.Println(31, 40, fmt.Sprintf("port [%v] listener accept failed: %s", s.tunnelPort, err.Error()))
 				return
 			}
 
@@ -70,13 +70,13 @@ func (s *Server) Run() {
 		}
 		openConn, err := openListener.Accept()
 		if err != nil {
-			base.Println(31, 40, fmt.Sprintf("listener accept failed: %s", err.Error()))
+			base.Println(31, 40, fmt.Sprintf("port [%v] listener accept failed: %s", s.openPort, err.Error()))
 			return
 		}
 		go func() {
 			err = s.copy(openConn, tunnelConnPool)
 			if err != nil {
-				base.Println(31, 40, fmt.Sprintf("tcp [%v] -> [%v] connection copy fail: %s", s.tunnelPort, s.openPort, err.Error()))
+				base.Println(31, 40, fmt.Sprintf("tunnel [%v] -> [%v] connection copy fail: %s", s.tunnelPort, s.openPort, err.Error()))
 				return
 			}
 		}()

@@ -62,9 +62,12 @@ func client(opts base.AppOptions) {
 	var clients []*core.Client
 
 	for _, v := range opts.Clients {
+		if v.IdleConn <= 0 {
+			v.IdleConn = 1
+		}
 		bytes, _ := json.Marshal(v)
 		base.Println(36, 40, fmt.Sprintf("client start: %s", string(bytes)))
-		for i := 0; i < v.IdleNum; i++ {
+		for i := 0; i < v.IdleConn; i++ {
 			clients = append(clients, core.NewClient(v.TunnelAddr, v.LocalPort, opts.Secret))
 		}
 	}

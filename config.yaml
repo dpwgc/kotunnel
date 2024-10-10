@@ -10,7 +10,7 @@ app:
   clients:
     - tunnel-addr: 0.0.0.0:8080
       local-port: 7070
-      idle-num: 1
+      idle-conn: 1
   log:
     path: ./logs
     size: 1
