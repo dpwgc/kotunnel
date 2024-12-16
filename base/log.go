@@ -9,13 +9,13 @@ import (
 
 var Logger *slog.Logger
 
-func InitLog() {
+func InitLog(opt LogOptions) {
 	r := &lumberjack.Logger{
-		Filename:   Config().App.Log.Path + "/runtime.log",
+		Filename:   opt.Path + "/runtime.log",
 		LocalTime:  true,
-		MaxSize:    Config().App.Log.Size,
-		MaxAge:     Config().App.Log.Age,
-		MaxBackups: Config().App.Log.Backups,
+		MaxSize:    opt.Size,
+		MaxAge:     opt.Age,
+		MaxBackups: opt.Backups,
 		Compress:   false,
 	}
 	Logger = slog.New(slog.NewTextHandler(r, &slog.HandlerOptions{
@@ -31,11 +31,20 @@ func InitLog() {
 	}))
 }
 
-func Println(c1, c2 int, s string) {
-	fmt.Printf("\033[1;%v;%vm<%s> %s\033[0m\n", c1, c2, time.Now().Format("2006-01-02 15:04:05"), s)
-	if c1 == 31 {
+const (
+	Red   = 31
+	Blue  = 36
+	Green = 32
+)
+
+func Tips(color int, s string, seconds ...int) {
+	fmt.Printf("\033[1;%v;%vm<%s> %s\033[0m\n", color, 40, time.Now().Format("2006-01-02 15:04:05"), s)
+	if color == Red {
 		Logger.Error(s)
 	} else {
 		Logger.Info(s)
+	}
+	if len(seconds) > 0 && seconds[0] > 0 {
+		time.Sleep(time.Duration(seconds[0]) * time.Second)
 	}
 }

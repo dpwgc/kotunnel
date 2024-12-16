@@ -9,85 +9,98 @@ import (
 )
 
 type Server struct {
-	openPort   int
-	tunnelPort int
-	secret     string
-	stop       bool
+	openPort       int
+	tunnelPort     int
+	tunnelPool     chan net.Conn
+	openListener   net.Listener
+	tunnelListener net.Listener
+	secret         string
 }
 
-func NewServer(openPort, tunnelPort int, secret string) *Server {
+func NewServer(openPort, tunnelPort int, maxConn int, secret string) *Server {
+	if maxConn <= 0 {
+		maxConn = 1000
+	}
 	return &Server{
 		openPort:   openPort,
 		tunnelPort: tunnelPort,
+		tunnelPool: make(chan net.Conn, maxConn),
 		secret:     secret,
-		stop:       false,
 	}
 }
 
 func (s *Server) Run() {
-	openListener, tunnelListener, tunnelConnPool, err := s.serve()
-	if err != nil {
-		base.Println(31, 40, fmt.Sprintf("listener start failed: %s", err.Error()))
-		return
-	}
-
-	defer func() {
-		_ = openListener.Close()
-		_ = tunnelListener.Close()
-	}()
-
-	// 隧道端口监听
 	go func() {
-		for {
-			if s.stop {
-				return
-			}
-			// 接受隧道连接
-			tunnelConn, err := tunnelListener.Accept()
-			if err != nil {
-				_ = openListener.Close()
-				base.Println(31, 40, fmt.Sprintf("port [%v] listener accept failed: %s", s.tunnelPort, err.Error()))
-				return
-			}
-
-			err = s.handle(tunnelConn)
-			if err != nil {
-				base.Println(31, 40, fmt.Sprintf("tunnel [%v] -> [%v] create failed: %s", tunnelConn.RemoteAddr().String(), tunnelConn.LocalAddr().String(), err.Error()))
-				continue
-			}
-
-			base.Println(32, 40, fmt.Sprintf("tunnel [%v] -> [%v] create success", tunnelConn.RemoteAddr().String(), tunnelConn.LocalAddr().String()))
-
-			// 将隧道连接放入连接池
-			tunnelConnPool <- tunnelConn
+		err := s.ListenOpen()
+		if err != nil {
+			base.Tips(base.Red, fmt.Sprintf("open port listen error: %s", err.Error()), 5)
 		}
 	}()
+	err := s.ListenTunnel()
+	if err != nil {
+		base.Tips(base.Red, fmt.Sprintf("tunnel port listen error: %s", err.Error()), 5)
+	}
+}
+
+func (s *Server) ListenOpen() (err error) {
+
+	s.openListener, err = net.Listen("tcp", fmt.Sprintf(":%v", s.openPort))
+	if err != nil {
+		return err
+	}
+	defer s.Close()
 
 	// 开放端口监听
 	for {
-		if s.stop {
-			return
-		}
-		openConn, err := openListener.Accept()
+		conn, err := s.openListener.Accept()
 		if err != nil {
-			base.Println(31, 40, fmt.Sprintf("port [%v] listener accept failed: %s", s.openPort, err.Error()))
-			return
+			return err
 		}
 		go func() {
-			err = s.copy(openConn, tunnelConnPool)
+			err = s.copy(conn)
 			if err != nil {
-				base.Println(31, 40, fmt.Sprintf("tunnel [%v] -> [%v] connection copy fail: %s", s.tunnelPort, s.openPort, err.Error()))
-				return
+				base.Tips(base.Red, fmt.Sprintf("tunnel [%v] -> [%v] connection copy fail: %s", s.tunnelPort, s.openPort, err.Error()))
+			} else {
+				base.Tips(base.Green, fmt.Sprintf("tunnel [%v] -> [%v] connection copy success", s.tunnelPort, s.openPort))
 			}
 		}()
 	}
 }
 
-func (s *Server) Stop() {
-	s.stop = true
+func (s *Server) ListenTunnel() (err error) {
+
+	s.tunnelListener, err = net.Listen("tcp", fmt.Sprintf(":%v", s.tunnelPool))
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	for {
+		// 接受隧道连接
+		conn, err := s.tunnelListener.Accept()
+		if err != nil {
+			_ = s.openListener.Close()
+			return err
+		}
+		// 验证密钥，验证通过后，将连接挂在服务端上，保持长连接
+		err = s.hangOn(conn)
+		if err != nil {
+			base.Tips(base.Red, fmt.Sprintf("tunnel [%v] -> [%v] create failed: %s", conn.RemoteAddr().String(), conn.LocalAddr().String(), err.Error()))
+			continue
+		}
+		base.Tips(base.Green, fmt.Sprintf("tunnel [%v] -> [%v] create success", conn.RemoteAddr().String(), conn.LocalAddr().String()))
+		// 将隧道连接放入连接池
+		s.tunnelPool <- conn
+	}
 }
 
-func (s *Server) handle(conn net.Conn) (err error) {
+func (s *Server) Close() {
+	_ = s.openListener.Close()
+	_ = s.tunnelListener.Close()
+	close(s.tunnelPool)
+}
+
+func (s *Server) hangOn(conn net.Conn) (err error) {
 
 	defer func() {
 		if err != nil {
@@ -107,58 +120,43 @@ func (s *Server) handle(conn net.Conn) (err error) {
 		return errors.New("secret error")
 	}
 	// 响应验证结果
-	_, err = conn.Write(base.Int64ToBytes(1, 8))
+	_, err = conn.Write(base.Ping())
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *Server) serve() (net.Listener, net.Listener, chan net.Conn, error) {
-
-	var pool = make(chan net.Conn, 500)
-
-	open, err := net.Listen("tcp", fmt.Sprintf(":%v", s.openPort))
-	if err != nil {
-		return nil, nil, pool, err
-	}
-
-	tunnel, err := net.Listen("tcp", fmt.Sprintf(":%v", s.tunnelPort))
-	if err != nil {
-		return nil, nil, pool, err
-	}
-
-	return open, tunnel, pool, nil
-}
-
-func (s *Server) copy(openConn net.Conn, tunnelConnPool chan net.Conn) error {
+func (s *Server) copy(openConn net.Conn) error {
 
 	defer openConn.Close()
 
 	var tunnelConn net.Conn = nil
 	for {
-		tunnelConn = <-tunnelConnPool
-		_, err := tunnelConn.Write(base.Int64ToBytes(1, 8))
+		tunnelConn = <-s.tunnelPool
+		// 向客户端发送ping命令，验证这个连接是否存活
+		_, err := tunnelConn.Write(base.Ping())
 		if err != nil {
 			_ = tunnelConn.Close()
-			base.Println(31, 40, fmt.Sprintf("tunnel connection write error: %s", err.Error()))
+			base.Tips(base.Red, fmt.Sprintf("tunnel connection write error: %s", err.Error()))
 			continue
 		}
-		base.Println(32, 40, fmt.Sprintf("tunnel [%v] -> [%v] available", tunnelConn.RemoteAddr().String(), tunnelConn.LocalAddr().String()))
+		base.Tips(base.Green, fmt.Sprintf("tunnel [%v] -> [%v] available", tunnelConn.RemoteAddr().String(), tunnelConn.LocalAddr().String()))
 		break
 	}
 
 	defer tunnelConn.Close()
 
+	// 获取客户端回应
 	bs8 := make([]byte, 8)
 	_, err := tunnelConn.Read(bs8)
 	if err != nil {
 		return err
 	}
 
-	cmd := base.BytesToInt64(bs8)
-	if cmd == 1 {
-		base.CopyConn(tunnelConn, openConn)
+	// 如果客户端成功回应，说明这个连接是可用的，开始交换复制连接
+	if base.Valid(bs8) {
+		base.Copy(tunnelConn, openConn)
 	} else {
 		return errors.New("bad command")
 	}

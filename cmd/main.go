@@ -1,37 +1,42 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"kotunnel/base"
 	"kotunnel/core"
 	"os"
-	"time"
+)
+
+const (
+	Server = "server"
+	Client = "client"
 )
 
 func main() {
 
-	// 配置加载
-	base.InitConfig(os.Args)
-	// 日志加载
-	base.InitLog()
+	appCh := make(chan bool)
 
-	if len(base.Config().App.Secret) <= 0 {
-		base.Println(31, 40, "secret cannot be empty")
-		time.Sleep(5 * time.Second)
+	// 配置加载
+	config, err := base.GetConfig(os.Args)
+	if err != nil {
+		base.Tips(base.Red, fmt.Sprintf("load config error: %s", err.Error()), 5)
 		return
 	}
+	// 日志加载
+	base.InitLog(config.App.Log)
 
 	// 服务端 or 客户端
-	if base.Config().App.Mode == "server" {
-		server(base.Config().App)
-	} else if base.Config().App.Mode == "client" {
-		client(base.Config().App)
+	if config.App.Mode == Server {
+		server(config.App)
+	} else if config.App.Mode == Client {
+		client(config.App)
 	} else {
-		base.Println(31, 40, "mode must be 'server' or 'client'")
-		time.Sleep(5 * time.Second)
+		base.Tips(base.Red, "mode must be 'server' or 'client'", 5)
+		close(appCh)
 		return
 	}
+
+	<-appCh
 }
 
 func server(opts base.AppOptions) {
@@ -39,22 +44,17 @@ func server(opts base.AppOptions) {
 	var servers []*core.Server
 
 	for _, v := range opts.Servers {
-		bytes, _ := json.Marshal(v)
-		base.Println(36, 40, fmt.Sprintf("server start: %s", string(bytes)))
-		servers = append(servers, core.NewServer(v.OpenPort, v.TunnelPort, opts.Secret))
+		base.Tips(base.Blue, fmt.Sprintf("server [%v] -> [%v] launch", v.TunnelPort, v.OpenPort))
+		servers = append(servers, core.NewServer(v.OpenPort, v.TunnelPort, v.MaxConn, opts.Secret))
 	}
 
 	if len(servers) <= 0 {
-		base.Println(31, 40, "no server instances")
-		time.Sleep(5 * time.Second)
-		return
+		base.Tips(base.Red, "no server instances", 5)
 	}
 
-	for i := 0; i < len(servers)-1; i++ {
-		go servers[i].Run()
+	for _, v := range servers {
+		go v.Run()
 	}
-
-	servers[len(servers)-1].Run()
 }
 
 func client(opts base.AppOptions) {
@@ -65,22 +65,17 @@ func client(opts base.AppOptions) {
 		if v.IdleConn <= 0 {
 			v.IdleConn = 1
 		}
-		bytes, _ := json.Marshal(v)
-		base.Println(36, 40, fmt.Sprintf("client start: %s", string(bytes)))
+		base.Tips(base.Blue, fmt.Sprintf("client [%v] -> [%s] launch", v.LocalPort, v.TunnelAddr))
 		for i := 0; i < v.IdleConn; i++ {
 			clients = append(clients, core.NewClient(v.TunnelAddr, v.LocalPort, opts.Secret))
 		}
 	}
 
 	if len(clients) <= 0 {
-		base.Println(31, 40, "no client instances")
-		time.Sleep(5 * time.Second)
-		return
+		base.Tips(base.Red, "no client instances", 5)
 	}
 
-	for i := 0; i < len(clients)-1; i++ {
-		go clients[i].Run()
+	for _, v := range clients {
+		go v.Run()
 	}
-
-	clients[len(clients)-1].Run()
 }

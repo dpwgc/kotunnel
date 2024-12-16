@@ -1,11 +1,9 @@
 package base
 
 import (
-	"fmt"
 	"gopkg.in/yaml.v3"
 	"os"
 	"strconv"
-	"time"
 )
 
 type ConfigOptions struct {
@@ -23,6 +21,7 @@ type AppOptions struct {
 type ServerOptions struct {
 	OpenPort   int `yaml:"open-port" json:"openPort"`
 	TunnelPort int `yaml:"tunnel-port" json:"tunnelPort"`
+	MaxConn    int `yaml:"max-conn" json:"maxConn"`
 }
 
 type ClientOptions struct {
@@ -38,16 +37,12 @@ type LogOptions struct {
 	Backups int    `yaml:"backups" json:"backups"`
 }
 
-var config ConfigOptions
+func GetConfig(args []string) (*ConfigOptions, error) {
 
-func Config() ConfigOptions {
-	return config
-}
+	config := &ConfigOptions{}
 
-func InitConfig(args []string) {
-
-	// ./main server {secret} {open-port} {tunnel-port}
-	// ./main client {secret} {tunnel-addr} {local-port} {idle-num}
+	// ./main server {secret} {open-port} {tunnel-port} {max-conn}
+	// ./main client {secret} {tunnel-addr} {local-port} {idle-conn}
 	if len(args) >= 5 {
 		opts := AppOptions{
 			Mode:   args[1],
@@ -60,11 +55,16 @@ func InitConfig(args []string) {
 			},
 		}
 		if opts.Mode == "server" {
+			if len(args) == 5 {
+				args[5] = "1000"
+			}
 			open, _ := strconv.Atoi(args[3])
 			tunnel, _ := strconv.Atoi(args[4])
+			maxC, _ := strconv.Atoi(args[5])
 			opts.Servers = []ServerOptions{{
 				OpenPort:   open,
 				TunnelPort: tunnel,
+				MaxConn:    maxC,
 			}}
 		} else {
 			if len(args) == 5 {
@@ -79,20 +79,17 @@ func InitConfig(args []string) {
 			}}
 		}
 		config.App = opts
-		return
+		return config, nil
 	}
 
 	//加载客户端配置
 	configBytes, err := os.ReadFile("./config.yaml")
 	if err != nil {
-		Println(31, 40, fmt.Sprintf("read config error: %s", err.Error()))
-		time.Sleep(5 * time.Second)
-		panic(err)
+		return nil, err
 	}
 	err = yaml.Unmarshal(configBytes, &config)
 	if err != nil {
-		Println(31, 40, fmt.Sprintf("parse config error: %s", err.Error()))
-		time.Sleep(5 * time.Second)
-		panic(err)
+		return nil, err
 	}
+	return config, nil
 }
