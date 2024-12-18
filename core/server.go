@@ -66,7 +66,7 @@ func (s *Server) ListenOpen() (err error) {
 
 func (s *Server) ListenTunnel() (err error) {
 
-	s.tunnelListener, err = net.Listen("tcp", fmt.Sprintf(":%v", s.tunnelPool))
+	s.tunnelListener, err = net.Listen("tcp", fmt.Sprintf(":%v", s.tunnelPort))
 	if err != nil {
 		return err
 	}

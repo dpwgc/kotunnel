@@ -5,16 +5,10 @@ import (
 	"kotunnel/base"
 	"kotunnel/core"
 	"os"
-)
-
-const (
-	Server = "server"
-	Client = "client"
+	"sync"
 )
 
 func main() {
-
-	appCh := make(chan bool)
 
 	// 配置加载
 	config, err := base.GetConfig(os.Args)
@@ -23,23 +17,21 @@ func main() {
 		return
 	}
 	// 日志加载
-	base.InitLog(config.App.Log)
+	base.InitLog(config.Log)
 
 	// 服务端 or 客户端
-	if config.App.Mode == Server {
-		server(config.App)
-	} else if config.App.Mode == Client {
-		client(config.App)
+	if config.Mode == base.Server {
+		server(config)
+	} else if config.Mode == base.Client {
+		client(config)
 	} else {
 		base.Tips(base.Red, "mode must be 'server' or 'client'")
-		close(appCh)
-		return
 	}
-
-	<-appCh
 }
 
-func server(opts base.AppOptions) {
+func server(opts *base.ConfigOptions) {
+
+	wait := sync.WaitGroup{}
 
 	var servers []*core.Server
 
@@ -52,8 +44,10 @@ func server(opts base.AppOptions) {
 		base.Tips(base.Red, "no server instances")
 	}
 
+	wait.Add(len(servers))
 	for _, v := range servers {
 		go func(v *core.Server) {
+			defer wait.Done()
 			oErr, tErr := v.Run()
 			if oErr != nil {
 				base.Tips(base.Red, fmt.Sprintf("open port [%v] listen error: %s", v.OpenPort(), oErr.Error()))
@@ -63,9 +57,13 @@ func server(opts base.AppOptions) {
 			}
 		}(v)
 	}
+
+	wait.Wait()
 }
 
-func client(opts base.AppOptions) {
+func client(opts *base.ConfigOptions) {
+
+	wait := sync.WaitGroup{}
 
 	var clients []*core.Client
 
@@ -83,7 +81,13 @@ func client(opts base.AppOptions) {
 		base.Tips(base.Red, "no client instances")
 	}
 
+	wait.Add(len(clients))
 	for _, v := range clients {
-		go v.Run()
+		go func(v *core.Client) {
+			defer wait.Done()
+			v.Run()
+		}(v)
 	}
+
+	wait.Wait()
 }

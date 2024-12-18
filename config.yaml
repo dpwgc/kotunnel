@@ -1,18 +1,20 @@
-app:
-  # 'server' or 'client'
-  mode: server
-  secret: default
-  # server config
-  servers:
-    - open-port: 9090
-      tunnel-port: 8080
-  # client config
-  clients:
-    - tunnel-addr: 0.0.0.0:8080
-      local-port: 7070
-      idle-conn: 1
-  log:
-    path: ./logs
-    size: 1
-    age: 7
-    backups: 1000
+# 'server' or 'client'
+mode: server
+secret: default
+
+# server config
+servers:
+  - open-port: 9090
+    tunnel-port: 8080
+
+# client config
+clients:
+  - tunnel-addr: 0.0.0.0:8080
+    local-port: 7070
+
+# log file config
+log:
+  path: ./logs
+  size: 1
+  age: 7
+  backups: 1000
