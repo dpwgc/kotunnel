@@ -29,17 +29,14 @@ func NewServer(openPort, tunnelPort int, maxConn int, secret string) *Server {
 	}
 }
 
-func (s *Server) Run() {
+func (s *Server) Run() (oErr, tErr error) {
+	defer s.Close()
 	go func() {
-		err := s.ListenOpen()
-		if err != nil {
-			base.Tips(base.Red, fmt.Sprintf("open port listen error: %s", err.Error()), 5)
-		}
+		defer s.Close()
+		oErr = s.ListenOpen()
 	}()
-	err := s.ListenTunnel()
-	if err != nil {
-		base.Tips(base.Red, fmt.Sprintf("tunnel port listen error: %s", err.Error()), 5)
-	}
+	tErr = s.ListenTunnel()
+	return oErr, tErr
 }
 
 func (s *Server) ListenOpen() (err error) {
@@ -92,6 +89,14 @@ func (s *Server) ListenTunnel() (err error) {
 		// 将隧道连接放入连接池
 		s.tunnelPool <- conn
 	}
+}
+
+func (s *Server) OpenPort() int {
+	return s.openPort
+}
+
+func (s *Server) TunnelPort() int {
+	return s.tunnelPort
 }
 
 func (s *Server) Close() {

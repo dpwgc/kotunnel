@@ -19,7 +19,7 @@ func main() {
 	// 配置加载
 	config, err := base.GetConfig(os.Args)
 	if err != nil {
-		base.Tips(base.Red, fmt.Sprintf("load config error: %s", err.Error()), 5)
+		base.Tips(base.Red, fmt.Sprintf("load config error: %s", err.Error()))
 		return
 	}
 	// 日志加载
@@ -31,7 +31,7 @@ func main() {
 	} else if config.App.Mode == Client {
 		client(config.App)
 	} else {
-		base.Tips(base.Red, "mode must be 'server' or 'client'", 5)
+		base.Tips(base.Red, "mode must be 'server' or 'client'")
 		close(appCh)
 		return
 	}
@@ -49,11 +49,19 @@ func server(opts base.AppOptions) {
 	}
 
 	if len(servers) <= 0 {
-		base.Tips(base.Red, "no server instances", 5)
+		base.Tips(base.Red, "no server instances")
 	}
 
 	for _, v := range servers {
-		go v.Run()
+		go func(v *core.Server) {
+			oErr, tErr := v.Run()
+			if oErr != nil {
+				base.Tips(base.Red, fmt.Sprintf("open port [%v] listen error: %s", v.OpenPort(), oErr.Error()))
+			}
+			if tErr != nil {
+				base.Tips(base.Red, fmt.Sprintf("tunnel port [%v] listen error: %s", v.TunnelPort(), tErr.Error()))
+			}
+		}(v)
 	}
 }
 
@@ -72,7 +80,7 @@ func client(opts base.AppOptions) {
 	}
 
 	if len(clients) <= 0 {
-		base.Tips(base.Red, "no client instances", 5)
+		base.Tips(base.Red, "no client instances")
 	}
 
 	for _, v := range clients {
