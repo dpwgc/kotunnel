@@ -6,25 +6,29 @@ import (
 	"fmt"
 	"kotunnel/base"
 	"net"
+	"time"
 )
 
 type Client struct {
-	tunnelAddr string
-	localPort  int
-	secret     string
-	close      bool
+	tunnelAddr    string
+	localPort     int
+	secret        string
+	retryInterval int
+	close         bool
 }
 
-func NewClient(tunnelAddr string, localPort int, secret string) *Client {
+func NewClient(tunnelAddr string, localPort int, retryInterval int, secret string) *Client {
 	return &Client{
-		tunnelAddr: tunnelAddr,
-		localPort:  localPort,
-		secret:     secret,
-		close:      false,
+		tunnelAddr:    tunnelAddr,
+		localPort:     localPort,
+		secret:        secret,
+		retryInterval: retryInterval,
+		close:         false,
 	}
 }
 
 func (c *Client) Run() {
+	base.Info(fmt.Sprintf("client [%v] -> [%s] launch", c.localPort, c.tunnelAddr))
 	for {
 		if c.close {
 			return
@@ -32,15 +36,17 @@ func (c *Client) Run() {
 		// 连接到服务端
 		tunnelConn, err := net.Dial("tcp", c.tunnelAddr)
 		if err != nil {
-			base.Tips(base.Red, fmt.Sprintf("tunnel server [%v] connection failed: %s", c.tunnelAddr, err.Error()), 5)
+			base.Error(fmt.Sprintf("tunnel server [%v] connection failed: %s", c.tunnelAddr, err.Error()))
+			c.sleep()
 			continue
 		}
 		// 建立隧道（与服务端建立长连接）
 		err = c.hangOn(tunnelConn)
 		if err != nil {
-			base.Tips(base.Red, fmt.Sprintf("tunnel [%v] -> [%v] create failed: %s", tunnelConn.LocalAddr().String(), c.tunnelAddr, err.Error()), 5)
+			base.Error(fmt.Sprintf("tunnel [%v] -> [%v] create failed: %s", tunnelConn.LocalAddr().String(), c.tunnelAddr, err.Error()))
+			c.sleep()
 		} else {
-			base.Tips(base.Green, fmt.Sprintf("tunnel [%v] -> [%v] create success", tunnelConn.LocalAddr().String(), c.tunnelAddr))
+			base.Success(fmt.Sprintf("tunnel [%v] -> [%v] create success", tunnelConn.LocalAddr().String(), c.tunnelAddr))
 		}
 	}
 }
@@ -94,4 +100,12 @@ func (c *Client) hangOn(tunnelConn net.Conn) (err error) {
 		return nil
 	}
 	return errors.New("bad command")
+}
+
+func (c *Client) sleep() {
+	if c.retryInterval <= 0 {
+		time.Sleep(5 * time.Second)
+	} else {
+		time.Sleep(time.Duration(c.retryInterval) * time.Second)
+	}
 }

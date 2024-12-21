@@ -7,15 +7,31 @@ import (
 	"time"
 )
 
+var closePrint = false
 var Logger *slog.Logger
 
-func InitLog(opt LogOptions) {
+func InitLog(config LogConfig) {
+
+	if len(config.Path) <= 0 {
+		config.Path = "./logs"
+	}
+	if config.Size <= 0 {
+		config.Size = 1
+	}
+	if config.Age <= 0 {
+		config.Age = 30
+	}
+	if config.Backups <= 0 {
+		config.Backups = 1000
+	}
+
+	closePrint = config.ClosePrint
 	r := &lumberjack.Logger{
-		Filename:   opt.Path + "/runtime.log",
+		Filename:   config.Path + "/runtime.log",
 		LocalTime:  true,
-		MaxSize:    opt.Size,
-		MaxAge:     opt.Age,
-		MaxBackups: opt.Backups,
+		MaxSize:    config.Size,
+		MaxAge:     config.Age,
+		MaxBackups: config.Backups,
 		Compress:   false,
 	}
 	Logger = slog.New(slog.NewTextHandler(r, &slog.HandlerOptions{
@@ -32,19 +48,38 @@ func InitLog(opt LogOptions) {
 }
 
 const (
-	Red   = 31
-	Blue  = 36
-	Green = 32
+	Red    = 31
+	Yellow = 33
+	Blue   = 36
+	Green  = 32
 )
 
-func Tips(color int, s string, seconds ...int) {
-	fmt.Printf("\033[1;%v;%vm<%s> %s\033[0m\n", color, 40, time.Now().Format("2006-01-02 15:04:05"), s)
-	if color == Red {
-		Logger.Error(s)
-	} else {
-		Logger.Info(s)
+func Error(s string) {
+	log(Red, s)
+}
+func Info(s string) {
+	log(Blue, s)
+}
+
+func Success(s string) {
+	log(Green, s)
+}
+
+func Warn(s string) {
+	log(Yellow, s)
+}
+
+func log(color int, s string) {
+	if !closePrint {
+		fmt.Printf("\033[1;%v;%vm<%s> %s\033[0m\n", color, 40, time.Now().Format("2006-01-02 15:04:05"), s)
 	}
-	if len(seconds) > 0 && seconds[0] > 0 {
-		time.Sleep(time.Duration(seconds[0]) * time.Second)
+	if Logger != nil {
+		if color == Red {
+			Logger.Error(s)
+		} else if color == Yellow {
+			Logger.Warn(s)
+		} else {
+			Logger.Info(s)
+		}
 	}
 }

@@ -1,7 +1,3 @@
-# 'server' or 'client'
-mode: server
-secret: default
-
 # server config
 servers:
   - open-port: 9090
@@ -15,6 +11,9 @@ clients:
 # log file config
 log:
   path: ./logs
+  # maximum size of a single file
   size: 1
-  age: 7
+  # number of days to retain
+  age: 30
+  # maximum number of backup files
   backups: 1000

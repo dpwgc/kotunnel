@@ -1,7 +1,6 @@
 package base
 
 import (
-	"errors"
 	"gopkg.in/yaml.v3"
 	"os"
 	"strconv"
@@ -13,47 +12,45 @@ const (
 	Client = "client"
 )
 
-type ConfigOptions struct {
-	Mode    string          `yaml:"mode" json:"mode"`
-	Secret  string          `yaml:"secret" json:"secret"`
-	Servers []ServerOptions `yaml:"servers" json:"servers"`
-	Clients []ClientOptions `yaml:"clients" json:"clients"`
-	Log     LogOptions      `yaml:"log" json:"log"`
+type Config struct {
+	Servers []ServerConfig `yaml:"servers" json:"servers"`
+	Clients []ClientConfig `yaml:"clients" json:"clients"`
+	Log     LogConfig      `yaml:"log" json:"log"`
 }
 
-type ServerOptions struct {
-	OpenPort   int `yaml:"open-port" json:"openPort"`
-	TunnelPort int `yaml:"tunnel-port" json:"tunnelPort"`
-	MaxConn    int `yaml:"max-conn" json:"maxConn"`
+type ServerConfig struct {
+	Secret     string `yaml:"secret" json:"secret"`
+	OpenPort   int    `yaml:"open-port" json:"openPort"`
+	TunnelPort int    `yaml:"tunnel-port" json:"tunnelPort"`
+	MaxConn    int    `yaml:"max-conn" json:"maxConn"`
 }
 
-type ClientOptions struct {
-	TunnelAddr string `yaml:"tunnel-addr" json:"tunnelAddr"`
-	LocalPort  int    `yaml:"local-port" json:"localPort"`
-	IdleConn   int    `yaml:"idle-conn" json:"idleConn"`
+type ClientConfig struct {
+	Secret        string `yaml:"secret" json:"secret"`
+	TunnelAddr    string `yaml:"tunnel-addr" json:"tunnelAddr"`
+	LocalPort     int    `yaml:"local-port" json:"localPort"`
+	IdleConn      int    `yaml:"idle-conn" json:"idleConn"`
+	RetryInterval int    `yaml:"retry-interval" json:"retryInterval"`
 }
 
-type LogOptions struct {
-	Path    string `yaml:"path" json:"path"`
-	Size    int    `yaml:"size" json:"size"`
-	Age     int    `yaml:"age" json:"age"`
-	Backups int    `yaml:"backups" json:"backups"`
+type LogConfig struct {
+	ClosePrint bool   `yaml:"close-print" json:"closePrint"`
+	Path       string `yaml:"path" json:"path"`
+	Size       int    `yaml:"size" json:"size"`
+	Age        int    `yaml:"age" json:"age"`
+	Backups    int    `yaml:"backups" json:"backups"`
 }
 
-func GetConfig(args []string) (*ConfigOptions, error) {
+func GetConfig(args []string) *Config {
 
 	// ./main -server secret=123456 openPort=8080 tunnelPort=9090 maxConn=1000
-	// ./main -client secret=123456 tunnelAddr=0.0.0.0:9090 localPort=7070 idleConn=1
+	// ./main -client secret=123456 tunnelAddr=0.0.0.0:9090 localPort=7070 idleConn=1 retryInterval=5
 
-	var params = make(map[string]string)
-	first := true
-	for _, v := range args {
-		if first {
-			first = false
-			continue
-		}
+	mode := ""
+	params := make(map[string]string)
+	for _, v := range args[1:] {
 		if strings.HasPrefix(v, "-") {
-			params["mode"] = strings.ReplaceAll(v, "-", "")
+			mode = strings.ReplaceAll(v, "-", "")
 			continue
 		}
 		arr := strings.Split(v, "=")
@@ -62,68 +59,37 @@ func GetConfig(args []string) (*ConfigOptions, error) {
 		}
 	}
 
-	if len(params) > 0 {
-
-		config := &ConfigOptions{
-			Mode:   params["mode"],
-			Secret: params["secret"],
-			Log: LogOptions{
-				Path:    "./logs",
-				Size:    1,
-				Age:     7,
-				Backups: 1000,
-			},
-		}
-		if config.Mode == Server {
-			open, _ := strconv.Atoi(params["openport"])
-			tunnel, _ := strconv.Atoi(params["tunnelport"])
-			maxC, _ := strconv.Atoi(params["maxconn"])
-			if maxC <= 0 {
-				maxC = 1000
-			}
-			config.Servers = []ServerOptions{{
-				OpenPort:   open,
-				TunnelPort: tunnel,
-				MaxConn:    maxC,
-			}}
-		} else if config.Mode == Client {
-			local, _ := strconv.Atoi(params["localport"])
-			idle, _ := strconv.Atoi(params["idleconn"])
-			if idle <= 0 {
-				idle = 1
-			}
-			config.Clients = []ClientOptions{{
-				TunnelAddr: params["tunneladdr"],
-				LocalPort:  local,
-				IdleConn:   idle,
-			}}
-		} else {
-			return nil, errors.New("mode must be 'server' or 'client'")
-		}
-		// 日志配置读取
-		file, err := loadConfig()
-		if file != nil && err != nil {
-			if len(file.Log.Path) > 0 {
-				config.Log.Path = file.Log.Path
-			}
-			if file.Log.Size > 0 {
-				config.Log.Size = file.Log.Size
-			}
-			if file.Log.Age > 0 {
-				config.Log.Age = file.Log.Age
-			}
-			if file.Log.Backups > 0 {
-				config.Log.Backups = file.Log.Backups
-			}
-		}
-		return config, nil
+	// 日志配置读取
+	config, err := loadConfig()
+	if err != nil {
+		Warn("read 'config.yaml' error: " + err.Error())
+	}
+	if config == nil {
+		config = &Config{}
 	}
 
-	return loadConfig()
+	if mode == Server {
+		config.Servers = append(config.Servers, ServerConfig{
+			Secret:     params["secret"],
+			OpenPort:   toInt(params["openport"]),
+			TunnelPort: toInt(params["tunnelport"]),
+			MaxConn:    toInt(params["maxconn"]),
+		})
+	} else if mode == Client {
+		config.Clients = append(config.Clients, ClientConfig{
+			Secret:        params["secret"],
+			TunnelAddr:    params["tunneladdr"],
+			LocalPort:     toInt(params["localport"]),
+			IdleConn:      toInt(params["idleconn"]),
+			RetryInterval: toInt(params["retryinterval"]),
+		})
+	}
+
+	return config
 }
 
-func loadConfig() (*ConfigOptions, error) {
-	config := &ConfigOptions{}
+func loadConfig() (*Config, error) {
+	config := &Config{}
 	configBytes, err := os.ReadFile("./config.yaml")
 	if err != nil {
 		return nil, err
@@ -133,4 +99,9 @@ func loadConfig() (*ConfigOptions, error) {
 		return nil, err
 	}
 	return config, nil
+}
+
+func toInt(s string) int {
+	i, _ := strconv.Atoi(s)
+	return i
 }
