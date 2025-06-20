@@ -1,12 +1,12 @@
 # server config
 servers:
-  - open-port: 9090
-    tunnel-port: 8080
+  - open-port: 9091
+    tunnel-port: 8081
 
 # client config
 clients:
-  - tunnel-addr: 0.0.0.0:8080
-    local-port: 7070
+  - tunnel-addr: 0.0.0.0:8081
+    local-port: 7071
 
 # log file config
 log:

@@ -15,16 +15,18 @@
 ### 服务端配置
 
 * 修改 config.yaml 配置，在 servers 数组中添加服务端配置
-  * 参数 open-port 是需要对外暴露访问的端口号，用于接收外部请求（必填）
-  * 参数 tunnel-port 是隧道端口号，用于与客户端建立隧道连接（必填）
-  * 参数 max-conn 是 tunnel-port 的最大连接数，默认1000（非必填）
-  * 参数 secret 是鉴权密钥，为空则不开启鉴权功能，默认不开启（非必填）
+  * open-port: 需要对外暴露访问的端口号，用于接收外部请求（必填）
+  * tunnel-port: 隧道端口号，用于与客户端建立隧道连接（必填）
+  * max-conn: tunnel-port 的最大连接数，默认1000（非必填）
+  * secret: 鉴权密钥，为空则不开启鉴权功能，默认不开启（非必填）
+  * name: 服务端名称，仅作为标识使用，无代码逻辑（非必填）
 
 ```yaml
 open-port: 9090
 tunnel-port: 8080
 max-conn: 100
 secret: 123456
+name: test1
 ```
 
 ***
@@ -32,11 +34,12 @@ secret: 123456
 ### 客户端配置
 
 * 修改 config.yaml 配置，在 clients 数组中添加服务端配置
-  * 参数 tunnel-addr 是服务器隧道地址（必填）
-  * 参数 local-port 是需要映射到外网的本地端口号（必填）
-  * 参数 idle-conn 是最大空闲隧道连接数，默认1（非必填）
-  * 参数 retry-interval 是重试间隔时间，单位秒，发生连接异常时默认5秒后重试（非必填）
-  * 参数 secret 是鉴权密钥，需与服务端配置保持一致（非必填）
+  * tunnel-addr: 服务器隧道地址（必填）
+  * local-port: 需要映射到外网的本地端口号（必填）
+  * idle-conn: 最大空闲隧道连接数，默认1（非必填）
+  * retry-interval: 重试间隔时间，单位秒，发生连接异常时默认5秒后重试（非必填）
+  * secret: 鉴权密钥，需与服务端配置保持一致（非必填）
+  * name: 客户端名称，仅作为标识使用，无代码逻辑（非必填）
 
 ```yaml
 tunnel-addr: 0.0.0.0:8080
@@ -44,6 +47,7 @@ local-port: 7070
 idle-conn: 3
 retry-interval: 10
 secret: 123456
+name: test1
 ```
 
 ***
@@ -59,11 +63,11 @@ secret: 123456
 * 服务端运行命令
 
 ```
-./main -server secret=123456 openPort=8080 tunnelPort=9090 maxConn=1000
+./main -server name=test1 secret=123456 openPort=8080 tunnelPort=9090 maxConn=1000
 ```
 
 * 客户端运行命令
 
 ```
-./main -client secret=123456 tunnelAddr=0.0.0.0:9090 localPort=7070 idleConn=1 retryInterval=5
+./main -client name=test1 secret=123456 tunnelAddr=0.0.0.0:9090 localPort=7070 idleConn=1 retryInterval=5
 ```

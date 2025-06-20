@@ -10,6 +10,7 @@ import (
 )
 
 type Client struct {
+	name          string
 	tunnelAddr    string
 	localPort     int
 	secret        string
@@ -17,8 +18,9 @@ type Client struct {
 	close         bool
 }
 
-func NewClient(tunnelAddr string, localPort int, retryInterval int, secret string) *Client {
+func NewClient(name string, tunnelAddr string, localPort int, retryInterval int, secret string) *Client {
 	return &Client{
+		name:          name,
 		tunnelAddr:    tunnelAddr,
 		localPort:     localPort,
 		secret:        secret,
@@ -27,8 +29,12 @@ func NewClient(tunnelAddr string, localPort int, retryInterval int, secret strin
 	}
 }
 
+func (c *Client) Name() string {
+	return fmt.Sprintf("{client:%s}", c.name)
+}
+
 func (c *Client) Run() {
-	base.Info(fmt.Sprintf("client [%v] -> [%s] launch", c.localPort, c.tunnelAddr))
+	base.Info(fmt.Sprintf("%s client [%v] -> [%s] launch", c.Name(), c.localPort, c.tunnelAddr))
 	for {
 		if c.close {
 			return
@@ -36,17 +42,17 @@ func (c *Client) Run() {
 		// 连接到服务端
 		tunnelConn, err := net.Dial("tcp", c.tunnelAddr)
 		if err != nil {
-			base.Error(fmt.Sprintf("tunnel server [%v] connection failed: %s", c.tunnelAddr, err.Error()))
+			base.Error(fmt.Sprintf("%s tunnel server [%v] connection failed: %s", c.Name(), c.tunnelAddr, err.Error()))
 			c.sleep()
 			continue
 		}
 		// 建立隧道（与服务端建立长连接）
 		err = c.hangOn(tunnelConn)
 		if err != nil {
-			base.Error(fmt.Sprintf("tunnel [%v] -> [%v] create failed: %s", tunnelConn.LocalAddr().String(), c.tunnelAddr, err.Error()))
+			base.Error(fmt.Sprintf("%s tunnel [%v] -> [%v] create failed: %s", c.Name(), tunnelConn.LocalAddr().String(), c.tunnelAddr, err.Error()))
 			c.sleep()
 		} else {
-			base.Success(fmt.Sprintf("tunnel [%v] -> [%v] create success", tunnelConn.LocalAddr().String(), c.tunnelAddr))
+			base.Success(fmt.Sprintf("%s tunnel [%v] -> [%v] create success", c.Name(), tunnelConn.LocalAddr().String(), c.tunnelAddr))
 		}
 	}
 }
@@ -99,7 +105,7 @@ func (c *Client) hangOn(tunnelConn net.Conn) (err error) {
 		go base.Copy(localConn, tunnelConn)
 		return nil
 	}
-	return errors.New("bad command")
+	return errors.New("bad command (check to see if the port you set is occupied by another app)")
 }
 
 func (c *Client) sleep() {

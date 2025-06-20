@@ -9,6 +9,7 @@ import (
 )
 
 type Server struct {
+	name           string
 	openPort       int
 	tunnelPort     int
 	tunnelPool     chan net.Conn
@@ -17,11 +18,12 @@ type Server struct {
 	secret         string
 }
 
-func NewServer(openPort, tunnelPort int, maxConn int, secret string) *Server {
+func NewServer(name string, openPort, tunnelPort int, maxConn int, secret string) *Server {
 	if maxConn <= 0 {
 		maxConn = 1000
 	}
 	return &Server{
+		name:       name,
 		openPort:   openPort,
 		tunnelPort: tunnelPort,
 		tunnelPool: make(chan net.Conn, maxConn),
@@ -29,8 +31,12 @@ func NewServer(openPort, tunnelPort int, maxConn int, secret string) *Server {
 	}
 }
 
+func (c *Server) Name() string {
+	return fmt.Sprintf("{server:%s}", c.name)
+}
+
 func (s *Server) Run() (oErr, tErr error) {
-	base.Info(fmt.Sprintf("server [%v] -> [%v] launch", s.tunnelPort, s.openPort))
+	base.Info(fmt.Sprintf("%s server [%v] -> [%v] launch", s.Name(), s.tunnelPort, s.openPort))
 	defer s.Close()
 	go func() {
 		defer s.Close()
@@ -57,9 +63,9 @@ func (s *Server) listenOpenPort() (err error) {
 		go func() {
 			err = s.copy(conn)
 			if err != nil {
-				base.Error(fmt.Sprintf("tunnel [%v] -> [%v] connection copy fail: %s", s.tunnelPort, s.openPort, err.Error()))
+				base.Error(fmt.Sprintf("%s tunnel [%v] -> [%v] connection copy fail: %s", s.Name(), s.tunnelPort, s.openPort, err.Error()))
 			} else {
-				base.Success(fmt.Sprintf("tunnel [%v] -> [%v] connection copy success", s.tunnelPort, s.openPort))
+				base.Success(fmt.Sprintf("%s tunnel [%v] -> [%v] connection copy success", s.Name(), s.tunnelPort, s.openPort))
 			}
 		}()
 	}
@@ -83,10 +89,10 @@ func (s *Server) listenTunnelPort() (err error) {
 		// 验证密钥，验证通过后，将连接挂在服务端上，保持长连接
 		err = s.hangOn(conn)
 		if err != nil {
-			base.Error(fmt.Sprintf("tunnel [%v] -> [%v] create failed: %s", conn.RemoteAddr().String(), conn.LocalAddr().String(), err.Error()))
+			base.Error(fmt.Sprintf("%s tunnel [%v] -> [%v] create failed: %s", s.Name(), conn.RemoteAddr().String(), conn.LocalAddr().String(), err.Error()))
 			continue
 		}
-		base.Success(fmt.Sprintf("tunnel [%v] -> [%v] create success", conn.RemoteAddr().String(), conn.LocalAddr().String()))
+		base.Success(fmt.Sprintf("%s tunnel [%v] -> [%v] create success", s.Name(), conn.RemoteAddr().String(), conn.LocalAddr().String()))
 		// 将隧道连接放入连接池
 		s.tunnelPool <- conn
 	}
@@ -136,10 +142,10 @@ func (s *Server) copy(openConn net.Conn) error {
 		_, err := tunnelConn.Write(base.Ping())
 		if err != nil {
 			_ = tunnelConn.Close()
-			base.Error(fmt.Sprintf("tunnel connection write error: %s", err.Error()))
+			base.Error(fmt.Sprintf("%s tunnel connection write error: %s", s.Name(), err.Error()))
 			continue
 		}
-		base.Success(fmt.Sprintf("tunnel [%v] -> [%v] available", tunnelConn.RemoteAddr().String(), tunnelConn.LocalAddr().String()))
+		base.Success(fmt.Sprintf("%s tunnel [%v] -> [%v] available", s.Name(), tunnelConn.RemoteAddr().String(), tunnelConn.LocalAddr().String()))
 		break
 	}
 
@@ -155,8 +161,7 @@ func (s *Server) copy(openConn net.Conn) error {
 	// 如果客户端成功回应，说明这个连接是可用的，开始交换复制连接
 	if base.Valid(bs8) {
 		base.Copy(tunnelConn, openConn)
-	} else {
-		return errors.New("bad command")
+		return nil
 	}
-	return nil
+	return errors.New("bad command (check to see if the port you set is occupied by another app)")
 }

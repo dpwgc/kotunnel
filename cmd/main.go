@@ -18,12 +18,12 @@ func main() {
 func runServers(servers []base.ServerConfig) {
 	for _, v := range servers {
 		go func(v base.ServerConfig) {
-			oErr, tErr := core.NewServer(v.OpenPort, v.TunnelPort, v.MaxConn, v.Secret).Run()
+			oErr, tErr := core.NewServer(v.Name, v.OpenPort, v.TunnelPort, v.MaxConn, v.Secret).Run()
 			if oErr != nil {
-				base.Error(fmt.Sprintf("open port [%v] listen error: %s", v.OpenPort, oErr.Error()))
+				base.Error(fmt.Sprintf("{server:%s} open port [%v] listen error: %s", v.Name, v.OpenPort, oErr.Error()))
 			}
 			if tErr != nil {
-				base.Error(fmt.Sprintf("tunnel port [%v] listen error: %s", v.TunnelPort, tErr.Error()))
+				base.Error(fmt.Sprintf("{server:%s} tunnel port [%v] listen error: %s", v.Name, v.TunnelPort, tErr.Error()))
 			}
 		}(v)
 	}
@@ -36,7 +36,7 @@ func runClients(clients []base.ClientConfig) {
 		}
 		for i := 0; i < v.IdleConn; i++ {
 			go func(v base.ClientConfig) {
-				core.NewClient(v.TunnelAddr, v.LocalPort, v.RetryInterval, v.Secret).Run()
+				core.NewClient(v.Name, v.TunnelAddr, v.LocalPort, v.RetryInterval, v.Secret).Run()
 			}(v)
 		}
 	}

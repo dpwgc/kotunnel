@@ -19,6 +19,7 @@ type Config struct {
 }
 
 type ServerConfig struct {
+	Name       string `yaml:"name" json:"name"`
 	Secret     string `yaml:"secret" json:"secret"`
 	OpenPort   int    `yaml:"open-port" json:"openPort"`
 	TunnelPort int    `yaml:"tunnel-port" json:"tunnelPort"`
@@ -26,6 +27,7 @@ type ServerConfig struct {
 }
 
 type ClientConfig struct {
+	Name          string `yaml:"name" json:"name"`
 	Secret        string `yaml:"secret" json:"secret"`
 	TunnelAddr    string `yaml:"tunnel-addr" json:"tunnelAddr"`
 	LocalPort     int    `yaml:"local-port" json:"localPort"`
@@ -43,8 +45,8 @@ type LogConfig struct {
 
 func GetConfig(args []string) *Config {
 
-	// ./main -server secret=123456 openPort=8080 tunnelPort=9090 maxConn=1000
-	// ./main -client secret=123456 tunnelAddr=0.0.0.0:9090 localPort=7070 idleConn=1 retryInterval=5
+	// ./main -server name=test1 secret=123456 openPort=8080 tunnelPort=9090 maxConn=1000
+	// ./main -client name=test1 secret=123456 tunnelAddr=0.0.0.0:9090 localPort=7070 idleConn=1 retryInterval=5
 
 	mode := ""
 	params := make(map[string]string)
@@ -70,6 +72,7 @@ func GetConfig(args []string) *Config {
 
 	if mode == Server {
 		config.Servers = append(config.Servers, ServerConfig{
+			Name:       params["name"],
 			Secret:     params["secret"],
 			OpenPort:   toInt(params["openport"]),
 			TunnelPort: toInt(params["tunnelport"]),
@@ -77,6 +80,7 @@ func GetConfig(args []string) *Config {
 		})
 	} else if mode == Client {
 		config.Clients = append(config.Clients, ClientConfig{
+			Name:          params["name"],
 			Secret:        params["secret"],
 			TunnelAddr:    params["tunneladdr"],
 			LocalPort:     toInt(params["localport"]),
