@@ -7,11 +7,6 @@ import (
 	"strings"
 )
 
-const (
-	Server = "server"
-	Client = "client"
-)
-
 type Config struct {
 	Servers []ServerConfig `yaml:"servers" json:"servers"`
 	Clients []ClientConfig `yaml:"clients" json:"clients"`
@@ -48,18 +43,7 @@ func GetConfig(args []string) *Config {
 	// ./main -server name=test1 secret=123456 openPort=8080 tunnelPort=9090 maxConn=1000
 	// ./main -client name=test1 secret=123456 tunnelAddr=0.0.0.0:9090 localPort=7070 idleConn=1 retryInterval=5
 
-	mode := ""
-	params := make(map[string]string)
-	for _, v := range args[1:] {
-		if strings.HasPrefix(v, "-") {
-			mode = strings.ReplaceAll(v, "-", "")
-			continue
-		}
-		arr := strings.Split(v, "=")
-		if len(arr) > 1 {
-			params[strings.ToLower(arr[0])] = strings.Join(arr[1:], "")
-		}
-	}
+	mode, params := ArgsToParams(args[1:])
 
 	// 日志配置读取
 	config, err := loadConfig()
@@ -70,22 +54,22 @@ func GetConfig(args []string) *Config {
 		config = &Config{}
 	}
 
-	if mode == Server {
+	if mode == "server" {
 		config.Servers = append(config.Servers, ServerConfig{
 			Name:       params["name"],
 			Secret:     params["secret"],
-			OpenPort:   toInt(params["openport"]),
-			TunnelPort: toInt(params["tunnelport"]),
-			MaxConn:    toInt(params["maxconn"]),
+			OpenPort:   ToInt(params["openport"]),
+			TunnelPort: ToInt(params["tunnelport"]),
+			MaxConn:    ToInt(params["maxconn"]),
 		})
-	} else if mode == Client {
+	} else if mode == "client" {
 		config.Clients = append(config.Clients, ClientConfig{
 			Name:          params["name"],
 			Secret:        params["secret"],
 			TunnelAddr:    params["tunneladdr"],
-			LocalPort:     toInt(params["localport"]),
-			IdleConn:      toInt(params["idleconn"]),
-			RetryInterval: toInt(params["retryinterval"]),
+			LocalPort:     ToInt(params["localport"]),
+			IdleConn:      ToInt(params["idleconn"]),
+			RetryInterval: ToInt(params["retryinterval"]),
 		})
 	}
 
@@ -105,7 +89,32 @@ func loadConfig() (*Config, error) {
 	return config, nil
 }
 
-func toInt(s string) int {
+func ArgsToParams(args []string) (string, map[string]string) {
+	mode := ""
+	params := make(map[string]string)
+	for _, v := range args {
+		if v == "" {
+			continue
+		}
+		if !strings.Contains(v, "-") && !strings.Contains(v, "=") {
+			continue
+		}
+		if strings.HasPrefix(v, "-") {
+			mode = strings.ReplaceAll(v, "-", "")
+			continue
+		}
+		if !strings.Contains(v, "=") {
+			continue
+		}
+		arr := strings.Split(v, "=")
+		if len(arr) > 1 {
+			params[strings.ToLower(arr[0])] = strings.Join(arr[1:], "")
+		}
+	}
+	return mode, params
+}
+
+func ToInt(s string) int {
 	i, _ := strconv.Atoi(s)
 	return i
 }

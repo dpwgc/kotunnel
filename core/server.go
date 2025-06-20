@@ -99,6 +99,9 @@ func (s *Server) listenTunnelPort() (err error) {
 }
 
 func (s *Server) Close() {
+	defer func() {
+		_ = recover()
+	}()
 	_ = s.openListener.Close()
 	_ = s.tunnelListener.Close()
 	close(s.tunnelPool)
